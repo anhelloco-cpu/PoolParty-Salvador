@@ -1,67 +1,79 @@
 import streamlit as st
+import base64
+import os
 
-# 1. Configuración de página (Debe ser lo primero)
+# 1. Configuración de página
 st.set_page_config(page_title="The Drop: Salvador 15", layout="wide")
 
-# 2. Estilo CSS para el fondo y limpiar la interfaz de Streamlit
+# 2. Función para cargar el video de forma segura
+def get_video_html(video_path):
+    if os.path.exists(video_path):
+        with open(video_path, "rb") as f:
+            video_bytes = f.read()
+        video_base64 = base64.b64encode(video_bytes).decode()
+        return f"""
+            <video autoplay muted loop playsinline class="video-bg">
+                <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+            </video>
+        """
+    return ""
+
+# 3. Aplicar CSS y mostrar el Video
+video_html = get_video_html("invitacion_neon.mp4")
+
 st.markdown(
-    """
+    f"""
     <style>
-    /* Ocultar elementos de Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu, footer, header {{visibility: hidden;}}
     
-    /* Contenedor del video de fondo */
-    .video-bg {
+    .video-bg {{
         position: fixed;
         right: 0;
         bottom: 0;
         min-width: 100%; 
         min-height: 100%;
         z-index: -1;
-    }
+        object-fit: cover;
+    }}
 
-    /* Capa de contenido */
-    .main-content {
+    .main-content {{
         position: relative;
         z-index: 1;
         text-align: center;
         color: white;
-        margin-top: 15vh;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+        padding-top: 15vh;
+        font-family: 'Arial Black', sans-serif;
+    }}
 
-    .neon-text {
-        font-size: 50px;
+    .neon-text {{
+        font-size: clamp(2rem, 8vw, 5rem);
         font-weight: bold;
-        text-shadow: 0 0 10px #00ffff, 0 0 20px #ff00ff;
-    }
+        text-transform: uppercase;
+        color: #fff;
+        text-shadow: 
+            0 0 7px #fff,
+            0 0 10px #fff,
+            0 0 21px #fff,
+            0 0 42px #0fa,
+            0 0 82px #0fa,
+            0 0 92px #0fa;
+    }}
     </style>
-    """,
-    unsafe_allow_html=True
-)
 
-# 3. HTML para el Video (Carga directa sin Base64 para mayor velocidad)
-# Nota: El archivo debe estar en la misma carpeta que app.py
-st.markdown(
-    """
-    <video autoplay muted loop playsinline class="video-bg">
-        <source src="https://raw.githubusercontent.com/tu-usuario/tu-repo/main/invitacion_neon.mp4" type="video/mp4">
-        <source src="static/invitacion_neon.mp4" type="video/mp4">
-    </video>
+    {video_html}
 
     <div class="main-content">
         <h1 class="neon-text">SALVADOR: THE DROP</h1>
-        <p style="font-size: 20px;">25 de Abril | 2026</p>
+        <p style="font-size: 1.5rem; text-shadow: 2px 2px 4px #000;">25 DE ABRIL | 2026</p>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# 4. Botón de confirmación (opcional)
-col1, col2, col3 = st.columns([1,1,1])
+# 4. Botón de confirmación centrado
+st.write("<br>" * 3, unsafe_allow_html=True) # Espaciador
+col1, col2, col3 = st.columns([1, 1, 1])
 with col2:
-    if st.button("CONFIRMAR ASISTENCIA"):
+    if st.button("CONFIRMAR ASISTENCIA", use_container_width=True):
         st.balloons()
-        st.success("¡Registrado! Nos vemos en la piscina.")
+        st.success("¡Nos vemos en la pool party, Salvador!")
