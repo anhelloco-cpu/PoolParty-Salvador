@@ -1,2 +1,4 @@
-streamlit
-Pillow
+app.py
+requirements.txt
+static/ (Carpeta)
+invitacion_neon.mp4
