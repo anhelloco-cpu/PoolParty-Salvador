@@ -1,52 +1,92 @@
 import streamlit as st
 import datetime
-import time
 
-# Configuración de la página
+# --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="THE DROP: 15 SALVADOR", page_icon="🌴", layout="centered")
 
-# Estilo CSS para que se vea Neón y tipo Festival
+# --- ESTILO TIPO FESTIVAL (CSS) ---
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    .stHeading h1 { color: #00f2ff; text-shadow: 0 0 10px #00f2ff; font-family: 'Courier New', Courier, monospace; }
-    .stText { color: #ffffff; }
-    .stButton>button { 
-        background-color: #ff00ff; 
-        color: white; 
-        border-radius: 20px; 
-        border: none;
-        box-shadow: 0 0 15px #ff00ff;
+    /* Fondo y tipografía general */
+    .main { background-color: #0e1117; color: white; }
+    
+    /* Efecto Neón para el Título */
+    .neon-title {
+        text-align: center;
+        color: #fff;
+        text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #00f2ff, 0 0 30px #00f2ff;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 0px;
     }
+
+    /* Contenedor de la Imagen con Brillo */
+    .img-container {
+        border: 2px solid #ff00ff;
+        box-shadow: 0 0 20px #ff00ff;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    /* Alerta de Autodestrucción */
+    .destruct-msg {
+        background-color: rgba(255, 0, 0, 0.2);
+        border: 1px solid #ff0000;
+        padding: 15px;
+        border-radius: 10px;
+        color: #ff4b4b;
+        text-align: center;
+        font-weight: bold;
+        animation: blinker 1.5s linear infinite;
+    }
+
+    @keyframes blinker { 50% { opacity: 0.3; } }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("THE DROP: 15 // SALVADOR")
-st.subheader("COORDENADAS: 25 DE ABRIL | 4:00 PM - 4:00 AM")
+# --- CABECERA ---
+st.markdown('<p class="neon-title">THE DROP: 15</p>', unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: #00f2ff;'>SALVADOR</h2>", unsafe_allow_html=True)
 
-# --- LÓGICA DEL CRONÓMETRO ---
-# Definimos la fecha de la fiesta (o la fecha límite de registro)
-fecha_fiesta = datetime.datetime(2026, 4, 25, 16, 0, 0)
+# --- IMAGEN PRINCIPAL (Debes poner el link de la imagen que generamos) ---
+# Si la tienes local, usa st.image("tu_imagen.png")
+st.markdown('<div class="img-container">', unsafe_allow_html=True)
+st.image("https://images.unsplash.com/photo-1519750157634-b6d493a0f77c?q=80&w=1000&auto=format&fit=crop", caption="📍 COORDENADAS: 25 ABRIL | 4 PM - 4 AM") 
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- LÓGICA DE AUTODESTRUCCIÓN ---
+fecha_fiesta = datetime.datetime(2026, 4, 25, 16, 0)
 ahora = datetime.datetime.now()
-tiempo_restante = fecha_fiesta - ahora
 
-if tiempo_restante.total_seconds() > 0:
-    st.info(f"⚠️ EL SISTEMA SE AUTODESTRUIRÁ EN: {tiempo_restante.days} días, {tiempo_restante.seconds//3600} horas.")
+if ahora < fecha_fiesta:
+    # SI EL TIEMPO NO HA EXPIRADO
+    st.markdown(f'<div class="destruct-msg">⚠️ EL SISTEMA SE AUTODESTRUIRÁ EN: {(fecha_fiesta - ahora).days} DÍAS </div>', unsafe_allow_html=True)
     
-    # Formulario de Registro
+    st.write("") # Espacio
+    
     with st.form("registro_vip"):
-        st.write("### RECLAMA TU ACCESO VIP")
-        nombre = st.text_input("NOMBRE DEL INVITADO")
+        st.markdown("### 📥 RECLAMA TU PASE VIP")
+        nombre = st.text_input("NOMBRE DEL AGENTE / INVITADO")
         cancion = st.text_input("TRACK PARA EL AGUA (TU CANCIÓN)")
-        confirmar = st.form_submit_button("CONFIRMAR ASISTENCIA")
         
-        if confirmar:
+        # Botón con estilo personalizado
+        submit = st.form_submit_button("CONFIRMAR ASISTENCIA")
+        
+        if submit:
             if nombre:
-                st.success(f"¡REGISTRO EXITOSO! Bienvenido a la lista, {nombre}. Guarda tu pase.")
-                # Aquí conectaríamos con Google Sheets después
+                st.balloons()
+                st.success(f"¡REGISTRO EXITOSO! {nombre}, estás en la lista. Prepárate para las 12 horas.")
+                # Aquí es donde conectamos con tu Google Sheets
             else:
-                st.error("Debes ingresar tu nombre para validar el acceso.")
+                st.warning("Escribe tu nombre para validar el acceso.")
 else:
-    # --- LA AUTODESTRUCCIÓN ---
-    st.error("🚨 ACCESO DENEGADO: EL SISTEMA SE HA AUTODESTRUIDO.")
-    st.write("Los cupos para THE DROP: 15 se han agotado o el tiempo límite expiró.")
+    # SI EL TIEMPO EXPIRÓ (AUTODESTRUCCIÓN)
+    st.markdown("""
+        <div style="text-align: center; padding: 50px; border: 5px solid red; border-radius: 20px;">
+            <h1 style="color: red;">🚨 ACCESO DENEGADO 🚨</h1>
+            <p style="font-size: 20px;">El sistema se ha autodestruido. <br> 
+            Los cupos para THE DROP: 15 están cerrados.</p>
+        </div>
+    """, unsafe_allow_html=True)
