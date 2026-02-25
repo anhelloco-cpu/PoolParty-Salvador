@@ -54,7 +54,7 @@ if ahora < fecha_evento:
         if submit_button:
             if nombre:
                 # Leer datos actuales
-                data = conn.read(worksheet="Invitados")
+                data = conn.read(worksheet="Sheet1")
                 
                 # Crear nueva fila
                 new_data = pd.DataFrame([{
