@@ -49,9 +49,9 @@ if st.session_state.paso == 'invitacion':
         st.markdown('<div class="card">', unsafe_allow_html=True)
         # Asegúrate de subir la imagen de la invitación a GitHub con este nombre
         try:
-            st.image("invitacion_neon.png", use_container_width=True)
+            st.image("invitacion_neon.jpg", use_container_width=True)
         except:
-            st.info("Sube 'invitacion_neon.png' a tu GitHub para ver el diseño.")
+            st.info("Sube 'invitacion_neon.jpg' a tu GitHub para ver el diseño.")
             
         st.write("### 25 DE ABRIL | 4:00 PM")
         if st.button("ACEPTAR INVITACIÓN (GET WRISTBAND)"):
