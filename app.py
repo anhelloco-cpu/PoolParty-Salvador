@@ -32,7 +32,7 @@ AUDIO_DATA = cargar_archivo_local("musica.mp3", tipo="audio")
 if not IMAGE_URL:
     st.error("❌ No encuentro 'invitacion.jpg'.")
 else:
-    # 2. HTML + JS (Diseño Perfecto + DJ Calao con Movimiento + Música)
+    # 2. HTML + JS
     codigo_html_js = f"""
     <!DOCTYPE html>
     <html>
@@ -62,20 +62,24 @@ else:
             z-index: 10; 
             width: 90%; 
             max-width: 450px;
-            top: 55%; 
+            /* SE BAJÓ A 58% PARA HACERLE ESPACIO AL BOTÓN ARRIBA */
+            top: 58%; 
             text-align: center;
         }}
         
+        /* CRONÓMETRO MÁS PEQUEÑO Y COMPACTO */
         .timer-block {{
             background-color: rgba(6, 14, 29, 0.9); 
-            border: 2px solid #00ffff;
-            border-radius: 10px; 
-            padding: 10px; 
-            margin-bottom: 15px;
-            box-shadow: 0 0 15px #00ffff;
+            border: 2px solid #00ffff; 
+            border-radius: 8px; /* Más sutil */
+            padding: 8px; /* Menos relleno */
+            margin: 0 auto 10px auto;
+            width: 75%; /* Más angosto */
+            box-shadow: 0 0 10px #00ffff;
         }}
-        .timer-count {{ font-size: 1.8rem; font-weight: bold; color: #00ffff; text-shadow: 0 0 10px #00ffff; }}
-        .timer-label {{ font-size: 0.7rem; text-transform: uppercase; color: #ff00ff; }}
+        /* Números más pequeños */
+        .timer-count {{ font-size: 1.3rem; font-weight: bold; color: #00ffff; text-shadow: 0 0 8px #00ffff; }}
+        .timer-label {{ font-size: 0.6rem; text-transform: uppercase; color: #ff00ff; }}
 
         .info-accordion {{
             background: rgba(0, 255, 255, 0.1);
@@ -92,7 +96,7 @@ else:
             color: white; background: rgba(0,0,0,0.8);
         }}
 
-        /* EFECTO DJ CALAO (Marquesina Neón Recuperada) */
+        /* EFECTO DJ CALAO */
         .marquee {{
             white-space: nowrap; overflow: hidden; background: #ff00ff; 
             color: white; margin-top: 10px; padding: 5px 0;
@@ -154,7 +158,7 @@ else:
                 }}
             }}, 1000);
 
-            // Iniciar audio al primer clic
+            // Iniciar audio al primer clic del usuario
             document.body.addEventListener('click', () => {{
                 const music = document.getElementById('bgMusic');
                 if (music) music.play();
@@ -165,11 +169,14 @@ else:
     """
     components.html(codigo_html_js, height=750)
 
-# 3. ESTILOS DEL BOTÓN
+# 3. ESTILOS DEL BOTÓN (Movido arriba del todo)
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
-.stButton { text-align: center; margin-top: -260px; position: relative; z-index: 100; }
+
+/* SE AJUSTÓ EL MARGIN A -380px PARA PONERLO ARRIBA DEL CRONÓMETRO */
+.stButton { text-align: center; margin-top: -380px; position: relative; z-index: 100; }
+
 div.stButton > button:first-child {
     background: linear-gradient(135deg, #001f3f, #00ffff) !important;
     color: white !important; border: 2px solid #00ffff !important;
@@ -204,7 +211,7 @@ if st.session_state.confirmando:
                         "disco_preferido": cancion
                     }).execute()
                     st.snow()
-                    st.success(f"¡LISTO {{nom.upper()}}! NOS VEMOS EN EL RANCHO.")
+                    st.success(f"¡LISTO {nom.upper()}! NOS VEMOS EN EL RANCHO.")
                     st.session_state.confirmando = False
                 except: st.error("Error de conexión.")
         if st.form_submit_button("VOLVER"):
