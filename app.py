@@ -264,6 +264,7 @@ else:
                     <div class="details-content">
                         <strong style="color:#00ffff;">📍 RANCHO JP</strong><br>
                         Barrio el Cañito, Km 1, sobre la Troncal, Monteria.<br>
+                        <strong style="color:#00ffff;">📅 FECHA:</strong> 25 de abril<br>
                         <strong style="color:#ff00ff;">🌅 HORARIO:</strong><br>
                         Desde el fin del Pre-Icfes hasta el amanecer.
                         
