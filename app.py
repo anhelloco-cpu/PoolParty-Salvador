@@ -29,7 +29,7 @@ def cargar_archivo_local(nombre_archivo, tipo="image"):
 IMAGE_URL = cargar_archivo_local("invitacion.jpg")
 AUDIO_DATA = cargar_archivo_local("musica.mp3", tipo="audio") 
 
-# --- ESTILOS MEJORADOS (Formulario Neón y adaptado a móvil) ---
+# --- ESTILOS MEJORADOS (Letras blancas y Formulario Neón) ---
 st.markdown("""
 <style>
 /* Ocultar menús y ajustar márgenes superiores */
@@ -79,31 +79,39 @@ div.stButton > button:first-child {
     box-shadow: 0 0 15px #ff00ff !important;
 }
 
-/* Etiquetas (Nombre, Apellido, Canción) */
-div[data-testid="stTextInput"] label p { 
-    color: #00ffff !important; 
+/* ETIQUETAS EN BLANCO (Nombre, Apellido, Canción, Comida) */
+div[data-testid="stTextInput"] label p, 
+div[data-testid="stSelectbox"] label p { 
+    color: white !important; 
     font-weight: bold !important; 
     font-size: 0.85rem !important;
     text-transform: uppercase;
 }
 
-/* Cajas de texto donde el usuario escribe */
-div[data-testid="stTextInput"] input {
+/* Cajas de texto y selectbox donde el usuario escribe/selecciona */
+div[data-testid="stTextInput"] input,
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
     background-color: #0b1a33 !important;
-    color: white !important;
+    color: white !important; /* TEXTO TIPEADO EN BLANCO */
     border: 1px solid #ff00ff !important;
     border-radius: 8px !important;
 }
 
+/* Asegurar que la opción seleccionada en el menú desplegable sea blanca */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] span {
+    color: white !important;
+}
+
 /* Efecto al hacer clic en la caja de texto */
-div[data-testid="stTextInput"] input:focus {
+div[data-testid="stTextInput"] input:focus,
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within {
     border-color: #00ffff !important;
     box-shadow: 0 0 8px #00ffff !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. LÓGICA DE REGISTRO (SIN COLUMNAS APLASTADAS) ---
+# --- 2. LÓGICA DE REGISTRO ---
 if 'confirmando' not in st.session_state: 
     st.session_state.confirmando = False
 
@@ -116,12 +124,13 @@ if st.session_state.confirmando:
     with st.form("registro"):
         st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff; margin-bottom: 20px;'>ESCRIBE TUS DATOS</h3>", unsafe_allow_html=True)
         
-        # Puestos en lista vertical (uno debajo del otro) para que se vean amplios en el celular
+        # Campos de texto uno debajo del otro
         nom = st.text_input("Nombre")
         ape = st.text_input("Apellido")
-        cancion = st.text_input("¿Qué canción quieres que ponga DJ CALAO?")
+        gusto_form = st.selectbox("Preferencia de Comida", ["Carne", "Pollo", "Vegetariano", "Sin preferencia"])
+        cancion = st.text_input("Tu canción favorita")
         
-        st.write("") # Un pequeño espacio antes de los botones
+        st.write("") # Espacio antes de los botones
         
         # Botones de acción
         c1, c2 = st.columns(2)
@@ -136,6 +145,7 @@ if st.session_state.confirmando:
                     supabase.table("invitados_pool_party").insert({
                         "nombre": nom, 
                         "apellido": ape,
+                        "gusto_comida": gusto_form,
                         "disco_preferido": cancion
                     }).execute()
                     st.snow()
@@ -150,7 +160,7 @@ if st.session_state.confirmando:
             st.rerun()
 
 
-# --- 3. HTML DE LA INVITACIÓN (Exactamente como la pediste) ---
+# --- 3. HTML DE LA INVITACIÓN ---
 if not IMAGE_URL:
     st.error("❌ No encuentro 'invitacion.jpg'.")
 else:
