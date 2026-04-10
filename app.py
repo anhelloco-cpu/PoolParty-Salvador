@@ -29,10 +29,69 @@ def cargar_archivo_local(nombre_archivo, tipo="image"):
 IMAGE_URL = cargar_archivo_local("invitacion.jpg")
 AUDIO_DATA = cargar_archivo_local("musica.mp3", tipo="audio") 
 
+# --- ESTILOS DEL BOTÓN (Arreglado: sin márgenes negativos que rompan el celular) ---
+st.markdown("""
+<style>
+#MainMenu, footer, header {visibility: hidden;}
+
+/* Botón centrado, con margen normal abajo para separarlo de la imagen */
+.stButton { text-align: center; margin-bottom: 10px; }
+
+div.stButton > button:first-child {
+    background: linear-gradient(135deg, #001f3f, #00ffff) !important;
+    color: white !important; border: 2px solid #00ffff !important;
+    border-radius: 50px !important; padding: 12px 25px !important;
+    font-size: 1.1rem !important; font-weight: 900 !important;
+    text-transform: uppercase !important; box-shadow: 0 0 20px #00ffff !important;
+    width: 80%; max-width: 400px; margin: 0 auto; display: block;
+}
+.stForm { background-color: #060e1d !important; border: 2px solid #ff00ff !important; border-radius: 15px !important; margin-bottom: 20px;}
+</style>
+""", unsafe_allow_html=True)
+
+# --- LÓGICA DE REGISTRO (AHORA ARRIBA DE TODO) ---
+if 'confirmando' not in st.session_state: 
+    st.session_state.confirmando = False
+
+if not st.session_state.confirmando:
+    col1, col2, col3 = st.columns([1, 6, 1])
+    if col2.button("CONFIRMAR ASISTENCIA"):
+        st.session_state.confirmando = True
+        st.rerun()
+
+if st.session_state.confirmando:
+    with st.form("registro"):
+        st.markdown("<h3 style='text-align:center; color:#ff00ff;'>LISTA DE INVITADOS</h3>", unsafe_allow_html=True)
+        nom = st.text_input("Nombre")
+        ape = st.text_input("Apellido")
+        cancion = st.text_input("¿Qué canción quieres que ponga DJ CALAO?")
+        
+        c1, c2 = st.columns(2)
+        if c1.form_submit_button("REGISTRARME"):
+            if nom and ape:
+                try:
+                    supabase.table("invitados_pool_party").insert({
+                        "nombre": nom, 
+                        "apellido": ape,
+                        "disco_preferido": cancion
+                    }).execute()
+                    st.snow()
+                    st.success(f"¡LISTO {nom.upper()}! NOS VEMOS EN EL RANCHO.")
+                    st.session_state.confirmando = False
+                except: st.error("Error de conexión.")
+            else:
+                st.warning("El nombre y apellido son obligatorios.")
+                
+        if c2.form_submit_button("VOLVER"):
+            st.session_state.confirmando = False
+            st.rerun()
+
+
+# --- HTML DE LA INVITACIÓN (ABAJO, SIN INTERFERENCIAS) ---
 if not IMAGE_URL:
     st.error("❌ No encuentro 'invitacion.jpg'.")
 else:
-    # 2. HTML + JS
+    # EL CÓDIGO HTML EXACTO QUE TE GUSTÓ (Con el cronómetro más pequeño y el DJ)
     codigo_html_js = f"""
     <!DOCTYPE html>
     <html>
@@ -62,7 +121,6 @@ else:
             z-index: 10; 
             width: 90%; 
             max-width: 450px;
-            /* SE BAJÓ A 58% PARA HACERLE ESPACIO AL BOTÓN ARRIBA */
             top: 58%; 
             text-align: center;
         }}
@@ -71,13 +129,12 @@ else:
         .timer-block {{
             background-color: rgba(6, 14, 29, 0.9); 
             border: 2px solid #00ffff; 
-            border-radius: 8px; /* Más sutil */
-            padding: 8px; /* Menos relleno */
+            border-radius: 8px; 
+            padding: 8px; 
             margin: 0 auto 10px auto;
-            width: 75%; /* Más angosto */
+            width: 75%; 
             box-shadow: 0 0 10px #00ffff;
         }}
-        /* Números más pequeños */
         .timer-count {{ font-size: 1.3rem; font-weight: bold; color: #00ffff; text-shadow: 0 0 8px #00ffff; }}
         .timer-label {{ font-size: 0.6rem; text-transform: uppercase; color: #ff00ff; }}
 
@@ -168,52 +225,3 @@ else:
     </html>
     """
     components.html(codigo_html_js, height=750)
-
-# 3. ESTILOS DEL BOTÓN (Movido arriba del todo)
-st.markdown("""
-<style>
-#MainMenu, footer, header {visibility: hidden;}
-
-/* SE AJUSTÓ EL MARGIN A -380px PARA PONERLO ARRIBA DEL CRONÓMETRO */
-.stButton { text-align: center; margin-top: -380px; position: relative; z-index: 100; }
-
-div.stButton > button:first-child {
-    background: linear-gradient(135deg, #001f3f, #00ffff) !important;
-    color: white !important; border: 2px solid #00ffff !important;
-    border-radius: 50px !important; padding: 10px 25px !important;
-    font-size: 1.1rem !important; font-weight: 900 !important;
-    text-transform: uppercase !important; box-shadow: 0 0 20px #00ffff !important;
-    width: 70%; margin: 0 auto;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# 4. LÓGICA DE REGISTRO
-if 'confirmando' not in st.session_state: st.session_state.confirmando = False
-if not st.session_state.confirmando:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    if col2.button("CONFIRMAR ASISTENCIA"):
-        st.session_state.confirmando = True
-        st.rerun()
-
-if st.session_state.confirmando:
-    with st.form("registro"):
-        st.markdown("<h3 style='text-align:center; color:#ff00ff;'>LISTA DE INVITADOS</h3>", unsafe_allow_html=True)
-        nom = st.text_input("Nombre")
-        ape = st.text_input("Apellido")
-        cancion = st.text_input("¿Qué canción quieres que ponga DJ CALAO?")
-        if st.form_submit_button("REGISTRARME"):
-            if nom and ape:
-                try:
-                    supabase.table("invitados_pool_party").insert({
-                        "nombre": nom, 
-                        "apellido": ape,
-                        "disco_preferido": cancion
-                    }).execute()
-                    st.snow()
-                    st.success(f"¡LISTO {nom.upper()}! NOS VEMOS EN EL RANCHO.")
-                    st.session_state.confirmando = False
-                except: st.error("Error de conexión.")
-        if st.form_submit_button("VOLVER"):
-            st.session_state.confirmando = False
-            st.rerun()
