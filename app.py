@@ -9,8 +9,8 @@ SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
 SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Configuración inicial
-st.set_page_config(page_title="Pool Party Salvador", layout="wide", initial_sidebar_state="collapsed")
+# Configuración inicial (Cambiado a "centered" para ayudar al diseño móvil)
+st.set_page_config(page_title="Pool Party Salvador", layout="centered", initial_sidebar_state="collapsed")
 
 # 1. FUNCIÓN CARGAR RECURSOS (Imagen y Audio)
 def cargar_archivo_local(nombre_archivo, tipo="image"):
@@ -29,39 +29,70 @@ def cargar_archivo_local(nombre_archivo, tipo="image"):
 IMAGE_URL = cargar_archivo_local("invitacion.jpg")
 AUDIO_DATA = cargar_archivo_local("musica.mp3", tipo="audio") 
 
-# --- ESTILOS DEL BOTÓN (Arreglado: sin márgenes negativos que rompan el celular) ---
+# --- ESTILOS DEL BOTÓN (Centrado, ajustado y pegado a la imagen) ---
 st.markdown("""
 <style>
+/* 1. Ocultar menús y quitar el espacio blanco gigante de arriba */
 #MainMenu, footer, header {visibility: hidden;}
+.block-container {
+    padding-top: 1rem !important;
+    padding-bottom: 0rem !important;
+    max-width: 500px !important; /* Fuerza el ancho para que coincida con la imagen */
+    margin: 0 auto !important;
+}
 
-/* Botón centrado, con margen normal abajo para separarlo de la imagen */
-.stButton { text-align: center; margin-bottom: 10px; }
+/* 2. Quitar espacios automáticos entre elementos de Streamlit */
+div[data-testid="stVerticalBlock"] {
+    gap: 0rem !important; 
+}
 
+/* 3. Contenedor del botón centrado perfecto */
+div.stButton { 
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+    margin-bottom: -5px !important; /* Acerca el botón a la imagen */
+}
+
+/* 4. Diseño del Botón */
 div.stButton > button:first-child {
     background: linear-gradient(135deg, #001f3f, #00ffff) !important;
-    color: white !important; border: 2px solid #00ffff !important;
-    border-radius: 50px !important; padding: 12px 25px !important;
-    font-size: 1.1rem !important; font-weight: 900 !important;
-    text-transform: uppercase !important; box-shadow: 0 0 20px #00ffff !important;
-    width: 80%; max-width: 400px; margin: 0 auto; display: block;
+    color: white !important; 
+    border: 2px solid #00ffff !important;
+    border-radius: 50px !important; 
+    padding: 10px 15px !important;
+    font-size: 0.85rem !important; /* Letra ajustada para que NO se salga del cuadro */
+    font-weight: 900 !important;
+    text-transform: uppercase !important; 
+    box-shadow: 0 0 15px #00ffff !important;
+    width: auto !important; 
+    min-width: 250px !important;
+    max-width: 320px !important;
+    white-space: nowrap !important; /* Texto corrido en una sola línea */
 }
-.stForm { background-color: #060e1d !important; border: 2px solid #ff00ff !important; border-radius: 15px !important; margin-bottom: 20px;}
+
+/* 5. Diseño del Formulario (pegado también) */
+.stForm { 
+    background-color: #060e1d !important; 
+    border: 2px solid #ff00ff !important; 
+    border-radius: 15px !important; 
+    margin-bottom: 0px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# --- LÓGICA DE REGISTRO (AHORA ARRIBA DE TODO) ---
+# --- 2. LÓGICA DE REGISTRO (ARRIBA DE TODO) ---
 if 'confirmando' not in st.session_state: 
     st.session_state.confirmando = False
 
 if not st.session_state.confirmando:
-    col1, col2, col3 = st.columns([1, 6, 1])
-    if col2.button("CONFIRMAR ASISTENCIA"):
+    if st.button("CONFIRMAR ASISTENCIA"):
         st.session_state.confirmando = True
         st.rerun()
 
 if st.session_state.confirmando:
     with st.form("registro"):
-        st.markdown("<h3 style='text-align:center; color:#ff00ff;'>LISTA DE INVITADOS</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff;'>LISTA DE INVITADOS</h3>", unsafe_allow_html=True)
         nom = st.text_input("Nombre")
         ape = st.text_input("Apellido")
         cancion = st.text_input("¿Qué canción quieres que ponga DJ CALAO?")
@@ -87,11 +118,10 @@ if st.session_state.confirmando:
             st.rerun()
 
 
-# --- HTML DE LA INVITACIÓN (ABAJO, SIN INTERFERENCIAS) ---
+# --- 3. HTML DE LA INVITACIÓN ---
 if not IMAGE_URL:
     st.error("❌ No encuentro 'invitacion.jpg'.")
 else:
-    # EL CÓDIGO HTML EXACTO QUE TE GUSTÓ (Con el cronómetro más pequeño y el DJ)
     codigo_html_js = f"""
     <!DOCTYPE html>
     <html>
@@ -101,44 +131,46 @@ else:
         
         .invitation-container {{
             position: relative; 
-            width: 100vw; 
+            width: 100%; 
             height: 100vh; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #060e1d;
+            max-width: 500px;
+            margin: 0 auto;
         }}
 
         .invitation-bg {{
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain; /* Fiel al diseño original sin distorsión */
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
             display: block;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1;
         }}
 
         .overlay-content {{
             position: absolute; 
             z-index: 10; 
-            width: 90%; 
-            max-width: 450px;
-            top: 58%; 
+            width: 100%; 
+            top: 60%; 
+            left: 0;
             text-align: center;
         }}
         
-        /* CRONÓMETRO MÁS PEQUEÑO Y COMPACTO */
         .timer-block {{
-            background-color: rgba(6, 14, 29, 0.9); 
-            border: 2px solid #00ffff; 
+            background-color: rgba(6, 14, 29, 0.85); 
+            border: 1px solid #00ffff; 
             border-radius: 8px; 
             padding: 8px; 
             margin: 0 auto 10px auto;
-            width: 75%; 
+            width: 65%; 
             box-shadow: 0 0 10px #00ffff;
         }}
-        .timer-count {{ font-size: 1.3rem; font-weight: bold; color: #00ffff; text-shadow: 0 0 8px #00ffff; }}
+        .timer-count {{ font-size: 1.2rem; font-weight: bold; color: #00ffff; text-shadow: 0 0 8px #00ffff; }}
         .timer-label {{ font-size: 0.6rem; text-transform: uppercase; color: #ff00ff; }}
 
         .info-accordion {{
+            width: 85%;
+            margin: 0 auto;
             background: rgba(0, 255, 255, 0.1);
             border: 1px solid #00ffff; 
             border-radius: 10px;
@@ -153,7 +185,6 @@ else:
             color: white; background: rgba(0,0,0,0.8);
         }}
 
-        /* EFECTO DJ CALAO */
         .marquee {{
             white-space: nowrap; overflow: hidden; background: #ff00ff; 
             color: white; margin-top: 10px; padding: 5px 0;
@@ -162,7 +193,7 @@ else:
         .marquee p {{
             display: inline-block; padding-left: 100%;
             animation: marquee 10s linear infinite; margin: 0;
-            font-weight: 900; text-transform: uppercase;
+            font-weight: 900; text-transform: uppercase; font-size: 0.8rem;
         }}
         @keyframes marquee {{
             0%   {{ transform: translate(0, 0); }}
@@ -215,7 +246,6 @@ else:
                 }}
             }}, 1000);
 
-            // Iniciar audio al primer clic del usuario
             document.body.addEventListener('click', () => {{
                 const music = document.getElementById('bgMusic');
                 if (music) music.play();
