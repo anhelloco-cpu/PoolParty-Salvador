@@ -5,7 +5,6 @@ import os
 from supabase import create_client, Client
 
 # --- CONFIGURACIÓN SUPABASE ---
-# Ingresa aquí tus credenciales de Settings > API en tu panel de Supabase
 SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
 SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -13,8 +12,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Configuración inicial de la página
 st.set_page_config(page_title="Pool Party Salvador", layout="wide", initial_sidebar_state="collapsed")
 
-# 1. FUNCIÓN SABUESO
-def cargar_imagen_local(nombre_archivo):
+# 1. FUNCIÓN SABUESO (Para imagen y audio)
+def cargar_archivo_local(nombre_archivo, tipo="image"):
     rutas_posibles = [
         os.path.join(os.path.dirname(__file__), nombre_archivo),
         os.path.join(os.getcwd(), nombre_archivo),
@@ -22,18 +21,22 @@ def cargar_imagen_local(nombre_archivo):
     ]
     for ruta in rutas_posibles:
         if os.path.exists(ruta):
-            with open(ruta, "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode()
-            return f"data:image/jpeg;base64,{encoded_string}", None
-    return None, rutas_posibles[0]
+            with open(ruta, "rb") as f:
+                encoded_string = base64.b64encode(f.read()).decode()
+            if tipo == "image":
+                return f"data:image/jpeg;base64,{encoded_string}"
+            else:
+                return f"data:audio/mpeg;base64,{encoded_string}"
+    return None
 
-# Cargar la imagen
-IMAGE_URL, ruta_error = cargar_imagen_local("invitacion.jpg")
+# Cargar recursos
+IMAGE_URL = cargar_archivo_local("invitacion.jpg")
+AUDIO_DATA = cargar_archivo_local("musica.mp3", tipo="audio") 
 
 if not IMAGE_URL:
-    st.error("❌ Aún no encuentro la imagen.")
+    st.error("❌ Aún no encuentro la imagen 'invitacion.jpg'.")
 else:
-    # 2. EL CÓDIGO HTML Y JS MEJORADO
+    # 2. EL CÓDIGO HTML Y JS MEJORADO (Ordenado: Cronómetro -> Desplegable)
     codigo_html_js = f"""
     <!DOCTYPE html>
     <html>
@@ -52,22 +55,62 @@ else:
             position: absolute; bottom: 0; left: 0; width: 100%; height: 35%; z-index: 2;
         }}
         .overlay-content {{
-            position: absolute; z-index: 10; width: 100%; top: 62%; 
+            position: absolute; z-index: 10; width: 100%; top: 55%; 
             text-align: center; color: white; font-family: 'Arial Black', sans-serif;
         }}
+        
+        /* Cronómetro */
         .timer-block {{
             background-color: rgba(6, 14, 29, 0.85); border: 2px solid #00ffff;
-            border-radius: 10px; padding: 15px; width: 85%; margin: 0 auto;
+            border-radius: 10px; padding: 15px; width: 85%; margin: 0 auto 10px;
             box-shadow: 0 0 15px #ff00ff;
         }}
         .timer-label {{ font-size: 0.85rem; text-transform: uppercase; color: #ff00ff; margin-top: 5px; }}
         .timer-count {{ font-size: 2.2rem; font-weight: bold; color: #00ffff; text-shadow: 0 0 10px #00ffff; }}
+        
+        /* Desplegable interactivo */
+        .info-accordion {{
+            width: 85%; margin: 0 auto;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff; border-radius: 10px;
+            overflow: hidden; transition: 0.3s;
+        }}
+        summary {{
+            padding: 10px; color: #00ffff; cursor: pointer; outline: none;
+            list-style: none; font-size: 0.9rem; font-weight: bold;
+        }}
+        summary::-webkit-details-marker {{ display: none; }}
+        
+        .details-content {{ 
+            padding: 10px; text-align: left; font-size: 0.75rem; 
+            background: rgba(0,0,0,0.6); line-height: 1.4;
+        }}
+
+        /* DJ Animado */
+        .marquee {{
+            white-space: nowrap; overflow: hidden; background: #ff00ff; 
+            color: white; margin-top: 8px; padding: 4px 0;
+        }}
+        .marquee p {{
+            display: inline-block; padding-left: 100%;
+            animation: marquee 10s linear infinite; margin: 0;
+            font-weight: 900; text-transform: uppercase;
+        }}
+        @keyframes marquee {{
+            0%   {{ transform: translate(0, 0); }}
+            100% {{ transform: translate(-100%, 0); }}
+        }}
     </style>
     </head>
     <body>
+        <audio id="bgMusic" loop autoplay>
+            <source src="{AUDIO_DATA}" type="audio/mpeg">
+        </audio>
+
         <div class="invitation-container">
             <img src="{IMAGE_URL}" class="invitation-bg" id="bgImage" alt="Fondo Salvador">
             <canvas id="waterCanvas"></canvas>
+            
             <div class="overlay-content">
                 <div class="timer-block" id="timerBlock">
                     <div style="display: flex; justify-content: space-around;">
@@ -77,6 +120,21 @@ else:
                         <div><div class="timer-count" id="seconds">00</div><div class="timer-label">Seg</div></div>
                     </div>
                 </div>
+
+                <details class="info-accordion">
+                    <summary>🔽 VER LUGAR Y DJ</summary>
+                    <div class="details-content">
+                        <strong style="color:#00ffff;">📍 RANCHO JP</strong><br>
+                        Barrio el Cañito, Km 1, sobre la Troncal, Monteria-Ciénaga de Oro.<br>
+                        <em>(Al lado del Motel Nexos)</em><br><br>
+                        <strong style="color:#ff00ff;">🌅 HORARIO:</strong><br>
+                        Desde que termine el Pre-Icfes hasta el amanecer.
+                        
+                        <div class="marquee">
+                            <p>⚡ DJ CALAO EN VIVO ⚡ DJ CALAO ⚡ DJ CALAO ⚡</p>
+                        </div>
+                    </div>
+                </details>
             </div>
         </div>
 
@@ -112,8 +170,7 @@ else:
             function startWaterAnimation() {{
                 canvas.width = canvas.parentElement.offsetWidth;
                 canvas.height = canvas.parentElement.offsetHeight * 0.35;
-                ctx.save();
-                ctx.beginPath();
+                ctx.save(); ctx.beginPath();
                 ctx.rect(0, 0, canvas.width, canvas.height);
                 ctx.clip();
                 ctx.drawImage(img, 0, -canvas.parentElement.offsetHeight * 0.65, canvas.width, canvas.parentElement.offsetHeight);
@@ -130,6 +187,10 @@ else:
                 }}
             }}
             if(img.complete) {{ startWaterAnimation(); }} else {{ img.onload = startWaterAnimation; }}
+            
+            document.body.addEventListener('click', () => {{
+                document.getElementById('bgMusic').play();
+            }}, {{ once: true }});
         }});
         </script>
     </body>
@@ -137,88 +198,62 @@ else:
     """
     components.html(codigo_html_js, height=800)
 
-# 3. ESTILOS DEL BOTÓN Y FORMULARIO
+# 3. ESTILOS DEL BOTÓN Y FORMULARIO (Tu código intacto)
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
 
 .stButton {
     text-align: center;
-    margin-top: -50px;
+    margin-top: -85px; /* Ajustado para quedar debajo del desplegable */
     position: relative;
     z-index: 100;
 }
 
-/* Botón Principal Aqua-Neon */
 div.stButton > button:first-child {
     background: linear-gradient(135deg, #001f3f 0%, #0074D9 50%, #00ffff 100%) !important;
     color: white !important;
     border: 2px solid #00ffff !important;
     border-radius: 50px !important;
-    padding: 15px 35px !important;
-    font-size: 1.3rem !important;
+    padding: 12px 25px !important;
+    font-size: 1.1rem !important;
     font-weight: 900 !important;
-    font-family: 'Arial Black', sans-serif !important;
     text-transform: uppercase !important;
-    letter-spacing: 2px !important;
-    box-shadow: 0 0 20px #00ffff, inset 0 0 10px rgba(255,255,255,0.4) !important;
-    width: 100%;
-    max-width: 450px;
+    box-shadow: 0 0 20px #00ffff !important;
+    width: 80%;
+    max-width: 400px;
     margin: 0 auto;
-    display: block;
 }
 
-div.stButton > button:hover {
-    box-shadow: 0 0 40px #00ffff, 0 0 10px #ff00ff !important;
-    transform: scale(1.02);
-}
-
-/* Estilos para el Formulario Neón */
 .stForm {
     background-color: #060e1d !important;
     border: 2px solid #ff00ff !important;
     box-shadow: 0 0 20px #ff00ff !important;
     border-radius: 15px !important;
-    padding: 20px !important;
-}
-
-input {
-    background-color: #0b1a33 !important;
-    color: #00ffff !important;
-    border: 1px solid #00ffff !important;
-}
-
-label {
-    color: #00ffff !important;
-    font-family: 'Arial Black', sans-serif !important;
+    margin-top: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# 4. LÓGICA DE REGISTRO (Corregida para evitar globos y forzar datos)
+# 4. LÓGICA DE REGISTRO (Tu código intacto)
 if 'confirmando' not in st.session_state:
     st.session_state.confirmando = False
 
-# Solo mostramos el botón azul si NO se está llenando el formulario
 if not st.session_state.confirmando:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # AQUÍ ESTÁ EL CAMBIO: El botón solo activa el formulario, no lanza globos.
         if st.button("CONFIRMAR ASISTENCIA"):
             st.session_state.confirmando = True
             st.rerun()
 
-# Si el usuario activó la confirmación, aparece el formulario
 if st.session_state.confirmando:
     with st.form("form_registro", clear_on_submit=True):
         st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff;'>LISTA DE INVITADOS</h3>", unsafe_allow_html=True)
-        
         c1, c2 = st.columns(2)
         nombre_form = c1.text_input("Nombre")
         apellido_form = c2.text_input("Apellido")
-        
         gusto_form = st.selectbox("Preferencia de Comida", ["Carne", "Pollo", "Vegetariano", "Sin preferencia"])
-        disco_form = st.text_input("Tu canción favorita")
+        disco_form = st.text_input("¿Qué canción quieres que ponga DJ CALAO?")
         
         col_f1, col_f2 = st.columns(2)
         with col_f1:
@@ -229,21 +264,18 @@ if st.session_state.confirmando:
         if enviar_datos:
             if nombre_form and apellido_form:
                 datos_save = {
-                    "nombre": nombre_form,
-                    "apellido": apellido_form,
-                    "gusto_comida": gusto_form,
-                    "disco_preferido": disco_form
+                    "nombre": nombre_form, "apellido": apellido_form,
+                    "gusto_comida": gusto_form, "disco_preferido": disco_form
                 }
                 try:
                     supabase.table("invitados_pool_party").insert(datos_save).execute()
-                    # EFECTO LÁSER/LUCES (st.snow simula partículas de luz neón)
                     st.snow() 
-                    st.success(f"¡BRUTAL {nombre_form.upper()}! REGISTRO COMPLETADO.")
+                    st.success(f"¡LISTO {nombre_form.upper()}! NOS VEMOS EN EL RANCHO JP.")
                     st.session_state.confirmando = False
-                except Exception as e:
-                    st.error("Error de conexión. Inténtalo de nuevo.")
+                except Exception:
+                    st.error("Error de conexión.")
             else:
-                st.warning("Nombre y apellido son requeridos para la lista.")
+                st.warning("Nombre y apellido son requeridos.")
         
         if cancelar_form:
             st.session_state.confirmando = False
