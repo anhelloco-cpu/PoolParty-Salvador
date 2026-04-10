@@ -9,7 +9,7 @@ SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
 SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Configuración inicial (Cambiado a "centered" para ayudar al diseño móvil)
+# Configuración inicial
 st.set_page_config(page_title="Pool Party Salvador", layout="centered", initial_sidebar_state="collapsed")
 
 # 1. FUNCIÓN CARGAR RECURSOS (Imagen y Audio)
@@ -29,59 +29,81 @@ def cargar_archivo_local(nombre_archivo, tipo="image"):
 IMAGE_URL = cargar_archivo_local("invitacion.jpg")
 AUDIO_DATA = cargar_archivo_local("musica.mp3", tipo="audio") 
 
-# --- ESTILOS DEL BOTÓN (Centrado, ajustado y pegado a la imagen) ---
+# --- ESTILOS MEJORADOS (Formulario Neón y adaptado a móvil) ---
 st.markdown("""
 <style>
-/* 1. Ocultar menús y quitar el espacio blanco gigante de arriba */
+/* Ocultar menús y ajustar márgenes superiores */
 #MainMenu, footer, header {visibility: hidden;}
 .block-container {
     padding-top: 1rem !important;
     padding-bottom: 0rem !important;
-    max-width: 500px !important; /* Fuerza el ancho para que coincida con la imagen */
+    max-width: 500px !important; 
     margin: 0 auto !important;
 }
 
-/* 2. Quitar espacios automáticos entre elementos de Streamlit */
 div[data-testid="stVerticalBlock"] {
     gap: 0rem !important; 
 }
 
-/* 3. Contenedor del botón centrado perfecto */
+/* Botón principal */
 div.stButton { 
     display: flex !important;
     justify-content: center !important;
     width: 100% !important;
-    margin-bottom: -5px !important; /* Acerca el botón a la imagen */
+    margin-bottom: -5px !important;
 }
 
-/* 4. Diseño del Botón */
 div.stButton > button:first-child {
     background: linear-gradient(135deg, #001f3f, #00ffff) !important;
     color: white !important; 
     border: 2px solid #00ffff !important;
     border-radius: 50px !important; 
     padding: 10px 15px !important;
-    font-size: 0.85rem !important; /* Letra ajustada para que NO se salga del cuadro */
+    font-size: 0.85rem !important; 
     font-weight: 900 !important;
     text-transform: uppercase !important; 
     box-shadow: 0 0 15px #00ffff !important;
     width: auto !important; 
     min-width: 250px !important;
     max-width: 320px !important;
-    white-space: nowrap !important; /* Texto corrido en una sola línea */
+    white-space: nowrap !important; 
 }
 
-/* 5. Diseño del Formulario (pegado también) */
+/* --- ESTILOS DEL FORMULARIO NEÓN --- */
 .stForm { 
-    background-color: #060e1d !important; 
+    background-color: rgba(6, 14, 29, 0.95) !important; 
     border: 2px solid #ff00ff !important; 
     border-radius: 15px !important; 
     margin-bottom: 0px !important;
+    padding: 20px !important;
+    box-shadow: 0 0 15px #ff00ff !important;
+}
+
+/* Etiquetas (Nombre, Apellido, Canción) */
+div[data-testid="stTextInput"] label p { 
+    color: #00ffff !important; 
+    font-weight: bold !important; 
+    font-size: 0.85rem !important;
+    text-transform: uppercase;
+}
+
+/* Cajas de texto donde el usuario escribe */
+div[data-testid="stTextInput"] input {
+    background-color: #0b1a33 !important;
+    color: white !important;
+    border: 1px solid #ff00ff !important;
+    border-radius: 8px !important;
+}
+
+/* Efecto al hacer clic en la caja de texto */
+div[data-testid="stTextInput"] input:focus {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 8px #00ffff !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. LÓGICA DE REGISTRO (ARRIBA DE TODO) ---
+# --- 2. LÓGICA DE REGISTRO (SIN COLUMNAS APLASTADAS) ---
 if 'confirmando' not in st.session_state: 
     st.session_state.confirmando = False
 
@@ -92,13 +114,23 @@ if not st.session_state.confirmando:
 
 if st.session_state.confirmando:
     with st.form("registro"):
-        st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff;'>LISTA DE INVITADOS</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff; margin-bottom: 20px;'>ESCRIBE TUS DATOS</h3>", unsafe_allow_html=True)
+        
+        # Puestos en lista vertical (uno debajo del otro) para que se vean amplios en el celular
         nom = st.text_input("Nombre")
         ape = st.text_input("Apellido")
         cancion = st.text_input("¿Qué canción quieres que ponga DJ CALAO?")
         
+        st.write("") # Un pequeño espacio antes de los botones
+        
+        # Botones de acción
         c1, c2 = st.columns(2)
-        if c1.form_submit_button("REGISTRARME"):
+        with c1:
+            submit_btn = st.form_submit_button("REGISTRARME", use_container_width=True)
+        with c2:
+            back_btn = st.form_submit_button("VOLVER", use_container_width=True)
+            
+        if submit_btn:
             if nom and ape:
                 try:
                     supabase.table("invitados_pool_party").insert({
@@ -113,12 +145,12 @@ if st.session_state.confirmando:
             else:
                 st.warning("El nombre y apellido son obligatorios.")
                 
-        if c2.form_submit_button("VOLVER"):
+        if back_btn:
             st.session_state.confirmando = False
             st.rerun()
 
 
-# --- 3. HTML DE LA INVITACIÓN ---
+# --- 3. HTML DE LA INVITACIÓN (Exactamente como la pediste) ---
 if not IMAGE_URL:
     st.error("❌ No encuentro 'invitacion.jpg'.")
 else:
