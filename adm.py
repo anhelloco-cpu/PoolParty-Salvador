@@ -11,17 +11,17 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 st.set_page_config(page_title="Panel VIP - Pool Party", layout="wide")
 
 st.title("📋 Panel de Control - Pool Party")
-st.markdown("Gestión de invitados y limpieza de duplicados en tiempo real.")
+st.markdown("Gestión de invitados y limpieza de duplicados.")
 
 # --- FUNCIÓN PARA ELIMINAR DUPLICADOS ---
 def eliminar_duplicados(df):
-    # Identificar duplicados basados en Nombre y Apellido (ignorando mayúsculas/minúsculas)
-    df['full_name_lower'] = (df['nombre'].str.strip() + " " + df['apellido'].str.strip()).str.lower()
+    # Identificar duplicados basados en Nombre y Apellido
+    df['nombre_completo'] = (df['nombre'].str.strip() + " " + df['apellido'].str.strip()).str.lower()
     
     # Nos quedamos con el primer ID de cada grupo y marcamos los demás para borrar
-    duplicados = df[df.duplicated(subset=['full_name_lower'], keep='first')]
+    duplicados_a_borrar = df[df.duplicated(subset=['nombre_completo'], keep='first')]
     
-    ids_a_eliminar = duplicados['id'].tolist()
+    ids_a_eliminar = duplicados_a_borrar['id'].tolist()
     
     exitos = 0
     errores = 0
@@ -43,47 +43,70 @@ try:
     if datos:
         df = pd.DataFrame(datos)
         
-        # Métricas principales
+        # Preparar columna limpia para comparar
+        df['nombre_completo'] = (df['nombre'].str.strip() + " " + df['apellido'].str.strip()).str.lower()
+        
+        # Contar cuántos son copias exactas que sobran
+        conteo_sobrantes = df.duplicated(subset=['nombre_completo'], keep='first').sum()
+        
+        # --- MÉTRICAS ---
         col1, col2 = st.columns(2)
         with col1:
-            st.metric(label="Total de Registros", value=len(df))
-        
-        # Detección de duplicados
-        df_clean_check = df.copy()
-        df_clean_check['nombre_completo'] = (df_clean_check['nombre'].str.strip() + " " + df_clean_check['apellido'].str.strip()).str.lower()
-        conteo_duplicados = df_clean_check.duplicated(subset=['nombre_completo'], keep='first').sum()
-        
+            st.metric(label="Total de Registros (Actual)", value=len(df))
         with col2:
-            st.metric(label="Registros Repetidos", value=conteo_duplicados, delta_color="inverse")
+            st.metric(label="Registros Repetidos (Sobrantes)", value=conteo_sobrantes, delta_color="inverse")
 
-        # --- SECCIÓN DE LIMPIEZA ---
-        if conteo_duplicados > 0:
-            st.warning(f"Se han detectado {conteo_duplicados} invitados repetidos (mismo nombre y apellido).")
-            if st.button("🗑️ ELIMINAR REGISTROS REPETIDOS"):
+        st.divider()
+
+        # --- SECCIÓN DE VISTA PREVIA Y LIMPIEZA ---
+        if conteo_sobrantes > 0:
+            st.warning(f"⚠️ Se han detectado {conteo_sobrantes} registros repetidos. Revisa la tabla de sospechosos a continuación:")
+            
+            # Filtrar el DataFrame para mostrar TODOS los registros que comparten nombre (originales y copias)
+            # keep=False marca todos los elementos de los grupos duplicados
+            df_mostrar_repetidos = df[df.duplicated(subset=['nombre_completo'], keep=False)].sort_values(by='nombre_completo')
+            
+            # Definir qué columnas mostrar en la vista previa
+            columnas_revisar = ['nombre', 'apellido', 'gusto_comida', 'disco_preferido']
+            if 'created_at' in df.columns:
+                columnas_revisar.append('created_at') # Mostrar fecha si existe para ver cuál fue primero
+                
+            columnas_finales_rev = [c for c in columnas_revisar if c in df_mostrar_repetidos.columns]
+            
+            # Mostrar la tabla de sospechosos
+            st.dataframe(df_mostrar_repetidos[columnas_finales_rev], use_container_width=True)
+            
+            st.info("💡 Nota: Si presionas eliminar, el sistema mantendrá el registro más antiguo de cada persona y borrará las copias.")
+            
+            # Botón de confirmación
+            if st.button("🗑️ CONFIRMAR Y ELIMINAR REPETIDOS"):
                 with st.spinner("Limpiando base de datos..."):
                     exitos, errores = eliminar_duplicados(df)
                     if exitos > 0:
-                        st.success(f"¡Limpieza completada! Se eliminaron {exitos} registros duplicados.")
+                        st.success(f"¡Limpieza completada! Se eliminaron {exitos} registros.")
                         st.rerun()
                     if errores > 0:
-                        st.error(f"No se pudieron eliminar {errores} registros. Revisa la conexión.")
+                        st.error(f"Hubo problemas eliminando {errores} registros.")
         else:
-            st.success("✅ No se encontraron registros duplicados.")
+            st.success("✅ La base de datos está limpia. No hay invitados repetidos.")
 
-        # --- TABLA DE INVITADOS ---
-        st.subheader("Lista Detallada")
-        # Reordenar para que sea más legible
+        st.divider()
+
+        # --- TABLA GENERAL DE INVITADOS ---
+        st.subheader("👥 Lista General de Invitados")
+        
+        # Ocultar columnas técnicas para la vista general
         columnas_visibles = ['nombre', 'apellido', 'gusto_comida', 'disco_preferido']
-        # Solo mostrar columnas que existan en el DF
         columnas_finales = [c for c in columnas_visibles if c in df.columns]
         
+        # Mostrar tabla ordenada alfabéticamente
         st.dataframe(df[columnas_finales].sort_values(by='nombre'), use_container_width=True)
         
-        if st.button("🔄 Refrescar Lista"):
+        if st.button("🔄 Refrescar Lista General"):
             st.rerun()
             
     else:
-        st.info("Aún no hay invitados registrados.")
+        st.info("Aún no hay invitados registrados. ¡El rancho está vacío!")
         if st.button("🔄 Verificar de nuevo"):
             st.rerun()
         
