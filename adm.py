@@ -33,6 +33,10 @@ def eliminar_duplicados(df):
             
     return exitos, errores
 
+# --- INICIALIZAR MEMORIA DE APORTANTES ---
+if 'aportantes' not in st.session_state:
+    st.session_state.aportantes = []
+
 # --- CARGA DE DATOS ---
 try:
     respuesta = supabase.table("invitados_pool_party").select("*").execute()
@@ -41,8 +45,8 @@ try:
     if datos:
         df = pd.DataFrame(datos)
         
-        # Crear pestañas
-        tab1, tab2 = st.tabs(["👥 Gestión de Invitados", "📊 Presupuesto Profesional"])
+        # Crear TRES pestañas ahora
+        tab1, tab2, tab3 = st.tabs(["👥 Gestión de Invitados", "📊 Presupuesto Profesional", "🤝 Financiamiento"])
         
         # ==========================================
         # PESTAÑA 1: GESTIÓN DE INVITADOS
@@ -183,8 +187,7 @@ try:
                     "costo_deco": costo_deco, "margen": margen
                 }
 
-            # ================= INTERFAZ DE RESULTADOS (FUERA DEL FORMULARIO) =================
-            # Esto permite que los botones se puedan clickear sin desaparecer
+            # ================= INTERFAZ DE RESULTADOS =================
             if 'resultados' in st.session_state:
                 res = st.session_state.resultados
                 conf = st.session_state.config_guardada
@@ -221,10 +224,20 @@ try:
                 * Fondo de Imprevistos ({conf['margen']}%): ${res['monto_imprevistos']:,.0f}
                 
                 ### **VALOR TOTAL DEL PROYECTO: ${res['gran_total']:,.0f}**
-                
-                ---
-                *Punto de equilibrio (Cuota sugerida por invitado): ${res['cuota_por_persona']:,.0f}*
                 """
+                
+                # ADICIÓN AUTOMÁTICA DE APORTANTES AL REPORTE SI EXISTEN
+                if st.session_state.aportantes:
+                    resumen_print += "\n---\n**4. FINANCIAMIENTO Y APORTES:**\n"
+                    total_recogido = 0
+                    for ap in st.session_state.aportantes:
+                        resumen_print += f"* {ap['nombre']} ({ap['detalle']}): **${ap['monto']:,.0f}**\n"
+                        total_recogido += ap['monto']
+                    resumen_print += f"\n* **Total Recaudado: ${total_recogido:,.0f}**\n"
+                    resumen_print += f"* **Faltante por cubrir: ${(res['gran_total'] - total_recogido):,.0f}**\n"
+                
+                resumen_print += f"\n---\n*Punto de equilibrio (Cuota sugerida por invitado): ${res['cuota_por_persona']:,.0f}*"
+                
                 st.markdown(resumen_print)
                 
                 st.button("🖨️ PREPARAR PARA IMPRIMIR (Ctrl + P)", on_click=lambda: st.info("Usa Ctrl + P (o Cmd + P en Mac) para guardar este reporte en PDF o imprimirlo."))
@@ -233,16 +246,12 @@ try:
                 st.subheader("💾 Opciones de Exportación")
                 col_d1, col_d2, col_d3 = st.columns(3)
 
-                # --- 1. GENERADOR DE PDF A PRUEBA DE EMOJIS ---
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", size=11)
                 for linea in resumen_print.split('\n'):
-                    # Quitamos todos los emojis que usaste reemplazándolos por nada
                     texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50)
-                    # Esta línea es la magia: Destruye cualquier caracter raro que vuelva loco a FPDF
                     texto_limpio = texto_limpio.encode('latin-1', 'ignore').decode('latin-1').strip()
-                    
                     if texto_limpio:
                         pdf.cell(0, 7, txt=texto_limpio, ln=True)
                 
@@ -253,7 +262,6 @@ try:
 
                 col_d1.download_button(label="📄 Descargar como PDF", data=pdf_bytes, file_name="Presupuesto_PoolParty.pdf", mime="application/pdf")
 
-                # --- 2. GENERADOR DE WORD ---
                 doc = Document()
                 doc.add_heading('Reporte Financiero Pool Party', 0)
                 for linea in resumen_print.split('\n'):
@@ -266,7 +274,6 @@ try:
 
                 col_d2.download_button(label="📝 Descargar como Word", data=word_bytes, file_name="Presupuesto_PoolParty.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
-                # --- 3. GUARDADO EN BASE DE DATOS (AHORA SÍ FUNCIONA SIEMPRE) ---
                 datos_guardar = {
                     "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "total_invitados": total_invitados,
@@ -274,21 +281,121 @@ try:
                     "costos_fijos": float(res['total_fijos']),
                     "gran_total": float(res['gran_total']),
                     "cuota_por_persona": float(res['cuota_por_persona']),
-                    "datos_json": conf # Guarda la configuración para que la recupere la próxima vez
+                    "datos_json": conf 
                 }
 
                 if col_d3.button("☁️ Guardar Presupuesto en Supabase"):
                     try:
-                        # Asegúrate de haber agregado la columna "datos_json" tipo JSONB a tu tabla
                         supabase.table("presupuestos_historicos").insert(datos_guardar).execute()
                         st.success("✅ ¡Guardado! La próxima vez que entres, los precios se cargarán solos.")
                         st.balloons()
                     except Exception as e:
                         st.error(f"⚠️ Necesitas agregar una columna llamada 'datos_json' (tipo JSONB) en la tabla 'presupuestos_historicos'. Error: {e}")
 
+        # ==========================================
+        # PESTAÑA 3: FINANCIAMIENTO (NUEVA)
+        # ==========================================
+        with tab3:
+            st.header("🤝 Gestión de Aportes y Financiamiento")
+            
+            if 'resultados' not in st.session_state:
+                st.warning("⚠️ Primero debes ir a la pestaña 'Presupuesto Profesional' y darle al botón de Generar Informe para conocer el costo total de la fiesta.")
+            else:
+                res = st.session_state.resultados
+                conf = st.session_state.config_guardada
+                gran_total = res['gran_total']
+                
+                st.metric("Meta de Recaudo (Costo Total de la Fiesta)", f"${gran_total:,.0f}")
+                st.divider()
+
+                with st.form("form_aportes"):
+                    st.subheader("Asignar un Patrocinador o Responsable")
+                    
+                    c_resp1, c_resp2 = st.columns(2)
+                    nombre_aportante = c_resp1.text_input("Nombre de la Persona (Ej. Mamá, Yo, Tío Juan)")
+                    tipo_aporte = c_resp2.selectbox("Tipo de Aporte", ["Asumir un Gasto Específico", "Monto Fijo ($)", "Porcentaje del Total (%)"])
+                    
+                    st.markdown("---")
+                    st.write("**Detalles del Aporte**")
+                    
+                    c_det1, c_det2, c_det3 = st.columns(3)
+                    
+                    # Diccionario con todos los gastos exactos que se calcularon
+                    gastos_disponibles = {
+                        "Proteína (Carne y Pollo)": res['gasto_carne'] + res['gasto_pollo'],
+                        f"Pasabocas ({conf['nombre_pasa']})": res['gasto_pasabocas'],
+                        "Acompañamientos": res['gasto_acompa'],
+                        "Bebidas e Hielo": conf['presu_bebidas'],
+                        "Alquiler de Locación": conf['costo_lugar'],
+                        "DJ y Sonido": conf['costo_dj'],
+                        "Decoración": conf['costo_deco'],
+                        "Fondo de Imprevistos": res['monto_imprevistos']
+                    }
+                    
+                    item_especifico = c_det1.selectbox("Si eligió 'Gasto Específico', ¿Qué va a pagar?", ["Seleccionar..."] + list(gastos_disponibles.keys()))
+                    monto_fijo = c_det2.number_input("Si eligió 'Monto Fijo', escribe el valor ($)", value=0, step=50000)
+                    porcentaje_fijo = c_det3.number_input("Si eligió 'Porcentaje', escribe el %", value=0, max_value=100)
+                    
+                    agregar_aporte = st.form_submit_button("➕ AGREGAR AL RECAUDO")
+                    
+                if agregar_aporte:
+                    if not nombre_aportante:
+                        st.error("Por favor escribe el nombre de la persona.")
+                    else:
+                        valor_calculado = 0
+                        detalle_texto = ""
+                        
+                        if tipo_aporte == "Asumir un Gasto Específico" and item_especifico != "Seleccionar...":
+                            valor_calculado = gastos_disponibles[item_especifico]
+                            detalle_texto = f"Pago de {item_especifico}"
+                        elif tipo_aporte == "Monto Fijo ($)" and monto_fijo > 0:
+                            valor_calculado = monto_fijo
+                            detalle_texto = "Aporte de monto fijo"
+                        elif tipo_aporte == "Porcentaje del Total (%)" and porcentaje_fijo > 0:
+                            valor_calculado = gran_total * (porcentaje_fijo / 100)
+                            detalle_texto = f"Aporte del {porcentaje_fijo}% del total"
+                        else:
+                            st.error("Verifica los datos del aporte. Selecciona un item, un monto o un porcentaje mayor a 0.")
+                            valor_calculado = 0
+                            
+                        if valor_calculado > 0:
+                            st.session_state.aportantes.append({
+                                "nombre": nombre_aportante,
+                                "detalle": detalle_texto,
+                                "monto": valor_calculado
+                            })
+                            st.success(f"¡Aporte de {nombre_aportante} agregado exitosamente!")
+                            st.rerun()
+
+                # --- MOSTRAR EL BALANCE FINANCIERO ---
+                if st.session_state.aportantes:
+                    st.subheader("📈 Balance Financiero")
+                    df_aportes = pd.DataFrame(st.session_state.aportantes)
+                    total_recogido = df_aportes['monto'].sum()
+                    faltante = gran_total - total_recogido
+                    
+                    c_bal1, c_bal2 = st.columns(2)
+                    c_bal1.metric("Dinero Asegurado", f"${total_recogido:,.0f}")
+                    
+                    if faltante > 0:
+                        c_bal2.metric("Faltante por Cubrir", f"${faltante:,.0f}", delta="Aún falta", delta_color="inverse")
+                    else:
+                        c_bal2.metric("Faltante por Cubrir", "$0", delta="¡Presupuesto Completado!", delta_color="normal")
+                    
+                    # Barra de progreso visual
+                    progreso = min(total_recogido / gran_total, 1.0)
+                    st.progress(progreso)
+                    
+                    st.write("**Lista de Responsables:**")
+                    st.dataframe(df_aportes, use_container_width=True)
+                    
+                    if st.button("🗑️ Limpiar Lista de Aportes"):
+                        st.session_state.aportantes = []
+                        st.rerun()
+
     else:
         st.info("Aún no hay invitados registrados en la base de datos.")
         if st.button("🔄 Reintentar"): st.rerun()
         
 except Exception as e:
-    st.error(f"Error de conexión: {e}")
+    st.error(f"Error de conexión o de datos: {e}")
