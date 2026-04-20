@@ -127,7 +127,7 @@ try:
                 gr_pollo = col_p2.number_input("Gramos pollo por persona", value=int(conf.get('gr_pollo', 350)))
                 
                 st.markdown("---")
-                st.write("**Pasabocas y Acompañamientos**")
+                st.write("**Pasabocas, Entradas y Acompañamientos**")
                 nombre_pasa = st.text_input("Tipo de Pasabocas", value=conf.get('nombre_pasa', "Deditos y empanaditas"))
                 col_b1, col_b2, col_b3 = st.columns(3)
                 precio_unid_pasa = col_b1.number_input("Precio Unidad Pasaboca ($)", value=int(conf.get('precio_unid_pasa', 1200)))
@@ -135,17 +135,21 @@ try:
                 num_rondas = col_b3.number_input("Número de rondas", value=int(conf.get('num_rondas', 2)))
                 
                 col_a1, col_a2 = st.columns(2)
-                costo_acompa = col_a1.number_input("Acompañamientos p/p ($) (Yuca, papa, etc.)", value=int(conf.get('costo_acompa', 6000)))
-                presu_bebidas = col_a2.number_input("Presupuesto Bebidas e Hielo ($)", value=int(conf.get('presu_bebidas', 250000)))
+                costo_entrada_pp = col_a1.number_input("Costo Entrada p/p ($)", value=int(conf.get('costo_entrada_pp', 8000)))
+                costo_acompa = col_a2.number_input("Acompañamientos p/p ($) (Yuca, papa, etc.)", value=int(conf.get('costo_acompa', 6000)))
+                
+                presu_bebidas = st.number_input("Presupuesto Bebidas e Hielo ($)", value=int(conf.get('presu_bebidas', 250000)))
                 
                 st.divider()
 
                 st.subheader("📌 COSTOS FIJOS (Independientes de la asistencia)")
                 col_f1, col_f2 = st.columns(2)
                 costo_lugar = col_f1.number_input("Alquiler del Lugar / Rancho JP ($)", value=int(conf.get('costo_lugar', 500000)), step=50000)
-                costo_dj = col_f2.number_input("DJ Calao y Sonido ($)", value=int(conf.get('costo_dj', 250000)), step=10000)
+                costo_torta = col_f2.number_input("Costo de la Torta ($)", value=int(conf.get('costo_torta', 150000)), step=10000)
                 
-                costo_deco = st.number_input("Decoración Neón y Ambientación ($)", value=int(conf.get('costo_deco', 100000)), step=10000)
+                col_f3, col_f4 = st.columns(2)
+                costo_dj = col_f3.number_input("DJ Calao y Sonido ($)", value=int(conf.get('costo_dj', 250000)), step=10000)
+                costo_deco = col_f4.number_input("Decoración Neón y Ambientación ($)", value=int(conf.get('costo_deco', 100000)), step=10000)
                 
                 st.divider()
                 margen = st.slider("Margen Financiero para Imprevistos (%)", 0, 20, int(conf.get('margen', 10)))
@@ -161,10 +165,11 @@ try:
                 
                 total_unidades_pasa = total_invitados * unid_persona_ronda * num_rondas
                 gasto_pasabocas = total_unidades_pasa * precio_unid_pasa
+                gasto_entradas = total_invitados * costo_entrada_pp
                 gasto_acompa = total_invitados * costo_acompa
                 
-                total_variables = gasto_carne + gasto_pollo + gasto_pasabocas + gasto_acompa + presu_bebidas
-                total_fijos = costo_lugar + costo_dj + costo_deco
+                total_variables = gasto_carne + gasto_pollo + gasto_pasabocas + gasto_entradas + gasto_acompa + presu_bebidas
+                total_fijos = costo_lugar + costo_torta + costo_dj + costo_deco
                 subtotal = total_variables + total_fijos
                 monto_imprevistos = subtotal * (margen / 100)
                 gran_total = subtotal + monto_imprevistos
@@ -174,7 +179,8 @@ try:
                 st.session_state.resultados = {
                     "k_carne": k_carne, "gasto_carne": gasto_carne, "k_pollo": k_pollo, "gasto_pollo": gasto_pollo,
                     "total_unidades_pasa": total_unidades_pasa, "gasto_pasabocas": gasto_pasabocas,
-                    "gasto_acompa": gasto_acompa, "total_variables": total_variables, "total_fijos": total_fijos,
+                    "gasto_entradas": gasto_entradas, "gasto_acompa": gasto_acompa, 
+                    "total_variables": total_variables, "total_fijos": total_fijos,
                     "subtotal": subtotal, "monto_imprevistos": monto_imprevistos, "gran_total": gran_total,
                     "cuota_por_persona": cuota_por_persona
                 }
@@ -182,9 +188,10 @@ try:
                 st.session_state.config_guardada = {
                     "precio_carne": precio_carne, "gr_carne": gr_carne, "precio_pollo": precio_pollo, 
                     "gr_pollo": gr_pollo, "nombre_pasa": nombre_pasa, "precio_unid_pasa": precio_unid_pasa, 
-                    "unid_persona_ronda": unid_persona_ronda, "num_rondas": num_rondas, "costo_acompa": costo_acompa, 
-                    "presu_bebidas": presu_bebidas, "costo_lugar": costo_lugar, "costo_dj": costo_dj, 
-                    "costo_deco": costo_deco, "margen": margen
+                    "unid_persona_ronda": unid_persona_ronda, "num_rondas": num_rondas, 
+                    "costo_entrada_pp": costo_entrada_pp, "costo_torta": costo_torta,
+                    "costo_acompa": costo_acompa, "presu_bebidas": presu_bebidas, 
+                    "costo_lugar": costo_lugar, "costo_dj": costo_dj, "costo_deco": costo_deco, "margen": margen
                 }
 
             # ================= INTERFAZ DE RESULTADOS =================
@@ -208,6 +215,7 @@ try:
                 
                 **1. COSTOS VARIABLES:**
                 * Proteína (Carne {res['k_carne']:.1f}kg + Pollo {res['k_pollo']:.1f}kg): **${(res['gasto_carne'] + res['gasto_pollo']):,.0f}**
+                * Entradas: **${res.get('gasto_entradas', 0):,.0f}**
                 * Pasabocas ({conf['nombre_pasa']} - {res['total_unidades_pasa']} unds): **${res['gasto_pasabocas']:,.0f}**
                 * Acompañamientos: **${res['gasto_acompa']:,.0f}**
                 * Bebidas e Hielo: **${conf['presu_bebidas']:,.0f}**
@@ -215,6 +223,7 @@ try:
                 
                 **2. COSTOS FIJOS:**
                 * Alquiler de Locación (Rancho JP): **${conf['costo_lugar']:,.0f}**
+                * Torta: **${conf.get('costo_torta', 0):,.0f}**
                 * DJ Calao y Sistema de Sonido: **${conf['costo_dj']:,.0f}**
                 * Decoración Neón y Ambientación: **${conf['costo_deco']:,.0f}**
                 * **Subtotal Fijos: ${res['total_fijos']:,.0f}**
@@ -329,10 +338,12 @@ try:
                     
                     gastos_disponibles = {
                         "Proteína (Carne y Pollo)": res['gasto_carne'] + res['gasto_pollo'],
+                        "Entradas": res.get('gasto_entradas', 0),
                         f"Pasabocas ({conf['nombre_pasa']})": res['gasto_pasabocas'],
                         "Acompañamientos": res['gasto_acompa'],
                         "Bebidas e Hielo": conf['presu_bebidas'],
                         "Alquiler de Locación": conf['costo_lugar'],
+                        "Torta": conf.get('costo_torta', 0),
                         "DJ y Sonido": conf['costo_dj'],
                         "Decoración": conf['costo_deco'],
                         "Fondo de Imprevistos": res['monto_imprevistos']
@@ -411,7 +422,11 @@ try:
                     st.progress(progreso)
                     
                     st.write("**Lista de Responsables:**")
-                    st.dataframe(df_aportes, use_container_width=True)
+                    
+                    # Formato moneda para la tabla para que se vea igual que en la imagen que mandaste
+                    df_aportes_mostrar = df_aportes.copy()
+                    df_aportes_mostrar['monto'] = df_aportes_mostrar['monto'].apply(lambda x: f"${x:,.0f}")
+                    st.dataframe(df_aportes_mostrar, use_container_width=True)
                     
                     if st.button("🗑️ Limpiar Lista de Aportes"):
                         st.session_state.aportantes = []
