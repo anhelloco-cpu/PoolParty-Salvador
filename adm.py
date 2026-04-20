@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
-
-# --- NUEVAS IMPORTACIONES PARA PDF, WORD Y FECHAS (NO SE QUITÓ NADA) ---
 from io import BytesIO
 from datetime import datetime
 from fpdf import FPDF
@@ -202,26 +200,35 @@ try:
                 """
                 st.markdown(resumen_print)
                 
-                # BOTÓN DE IMPRESIÓN ORIGINAL
+                # BOTÓN DE IMPRESIÓN 
                 st.button("🖨️ PREPARAR PARA IMPRIMIR (Ctrl + P)", on_click=lambda: st.info("Usa Ctrl + P (o Cmd + P en Mac) para guardar este reporte en PDF o imprimirlo."))
 
                 # ====================================================================
-                # NUEVA SECCIÓN DE EXPORTACIÓN Y GUARDADO (AGREGADA DIRECTAMENTE AQUÍ)
+                # NUEVA SECCIÓN DE EXPORTACIÓN Y GUARDADO (CON FILTRO DE EMOJIS)
                 # ====================================================================
                 st.divider()
                 st.subheader("💾 Opciones de Exportación")
                 col_d1, col_d2, col_d3 = st.columns(3)
 
-                # 1. GENERAR PDF EN MEMORIA
+                # 1. GENERAR PDF EN MEMORIA (A prueba de errores)
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", size=11)
                 for linea in resumen_print.split('\n'):
-                    # Limpiamos el markdown para que el PDF se vea limpio
-                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50).strip()
+                    # Limpiamos el markdown y los asteriscos
+                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50).replace('📝', '').strip()
+                    
+                    # MAGIA AQUÍ: Forzamos el texto a Latin-1 para eliminar los emojis invisibles y evitar que se estrelle
+                    texto_limpio = texto_limpio.encode('latin-1', 'ignore').decode('latin-1')
+                    
                     if texto_limpio:
                         pdf.cell(0, 7, txt=texto_limpio, ln=True)
-                pdf_bytes = pdf.output(dest='S').encode('latin1', 'ignore')
+                
+                # Guardado compatible con cualquier versión de FPDF
+                try:
+                    pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore')
+                except AttributeError:
+                    pdf_bytes = bytes(pdf.output())
 
                 col_d1.download_button(
                     label="📄 Descargar como PDF", 
@@ -234,7 +241,7 @@ try:
                 doc = Document()
                 doc.add_heading('Reporte Financiero Pool Party', 0)
                 for linea in resumen_print.split('\n'):
-                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50).strip()
+                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50).replace('📝', '').strip()
                     if texto_limpio:
                         doc.add_paragraph(texto_limpio)
                 b = BytesIO()
@@ -249,21 +256,20 @@ try:
                 )
 
                 # 3. GUARDAR EN SUPABASE
-                # Preparamos los datos a guardar
                 datos_guardar = {
                     "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "total_invitados": total_invitados,
-                    "costos_variables": total_variables,
-                    "costos_fijos": total_fijos,
-                    "gran_total": gran_total,
-                    "cuota_por_persona": cuota_por_persona
+                    "costos_variables": float(total_variables),
+                    "costos_fijos": float(total_fijos),
+                    "gran_total": float(gran_total),
+                    "cuota_por_persona": float(cuota_por_persona)
                 }
 
-                if col_d3.button("☁️ Guardar Presupuesto en Supabase"):
+                if col_d3.button("☁️ Guardar Presupuesto"):
                     try:
-                        # Asegúrate de crear una tabla llamada 'presupuestos_historicos' en Supabase
                         supabase.table("presupuestos_historicos").insert(datos_guardar).execute()
                         st.success("✅ ¡Presupuesto guardado exitosamente en tu base de datos!")
+                        st.balloons()
                     except Exception as e:
                         st.error(f"⚠️ Error al guardar. Verifica que creaste la tabla 'presupuestos_historicos' en Supabase. Detalle: {e}")
 
