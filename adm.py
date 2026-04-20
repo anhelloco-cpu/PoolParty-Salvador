@@ -41,7 +41,7 @@ try:
         tab1, tab2 = st.tabs(["👥 Gestión de Invitados", "💰 Calculadora de Presupuesto"])
         
         # ==========================================
-        # PESTAÑA 1: GESTIÓN DE INVITADOS (Tu código anterior)
+        # PESTAÑA 1: GESTIÓN DE INVITADOS
         # ==========================================
         with tab1:
             df['nombre_completo'] = (df['nombre'].str.strip() + " " + df['apellido'].str.strip()).str.lower()
@@ -85,96 +85,109 @@ try:
         # ==========================================
         with tab2:
             st.header("Generador de Presupuesto Automático")
-            st.markdown("El sistema lee tus invitados y calcula lo que necesitas comprar.")
             
-            # Contar preferencias reales de la base de datos
             conteo_comida = df['gusto_comida'].value_counts()
-            num_carne = conteo_comida.get('Carne', 0)
-            num_pollo = conteo_comida.get('Pollo', 0)
-            num_vege = conteo_comida.get('Vegetariano', 0)
-            num_sin_pref = conteo_comida.get('Sin preferencia', 0)
-            
-            # Para presupuestar, asumimos que los "Sin preferencia" comen Carne (para ir seguros)
-            total_carne = num_carne + num_sin_pref
-            total_pollo = num_pollo
-            total_vege = num_vege
+            total_carne = conteo_comida.get('Carne', 0) + conteo_comida.get('Sin preferencia', 0)
+            total_pollo = conteo_comida.get('Pollo', 0)
+            total_vege = conteo_comida.get('Vegetariano', 0)
             total_invitados = len(df)
             
-            st.info(f"**Resumen de Platos:** {total_carne} Carne/Sin pref. | {total_pollo} Pollo | {total_vege} Vegetarianos | **Total: {total_invitados} pers.**")
-            
+            st.info(f"**Invitados Confirmados:** {total_invitados}")
+
             with st.form("form_presupuesto"):
-                st.subheader("🥩 Insumos Directos (Proteína)")
-                col_c1, col_c2 = st.columns(2)
-                precio_carne = col_c1.number_input("Precio por Kilo de Carne ($)", value=35000, step=1000)
-                gr_carne = col_c2.number_input("Gramos de carne por persona", value=350, step=50)
+                st.subheader("🥩 Plato Principal (Proteína)")
+                c1, c2 = st.columns(2)
+                precio_carne = c1.number_input("Precio por Kilo Carne ($)", value=35000)
+                gr_carne = c2.number_input("Gramos carne por persona", value=350)
                 
-                col_p1, col_p2 = st.columns(2)
-                precio_pollo = col_p1.number_input("Precio por Kilo de Pollo ($)", value=15000, step=1000)
-                gr_pollo = col_p2.number_input("Gramos de pollo por persona", value=350, step=50)
+                c3, c4 = st.columns(2)
+                precio_pollo = c3.number_input("Precio por Kilo Pollo ($)", value=18000)
+                gr_pollo = c4.number_input("Gramos pollo por persona", value=350)
                 
-                precio_vege = st.number_input("Presupuesto por plato Vegetariano ($)", value=12000, step=1000)
+                # SECCIÓN DE PASABOCAS INGENIADA
+                st.subheader("🥟 Sección de Pasabocas")
+                nombre_pasa = st.text_input("¿Qué pasabocas darás?", value="Deditos y empanaditas")
+                col_p1, col_p2, col_p3 = st.columns(3)
+                precio_unid_pasa = col_p1.number_input("Precio por UNIDAD ($)", value=1200)
+                unid_persona_ronda = col_p2.number_input("Unidades por persona (en cada ronda)", value=4)
+                num_rondas = col_p3.number_input("¿Cuántas veces repartirás?", value=2)
                 
-                st.subheader("🥗 Extras y Logística")
+                st.subheader("🥗 Otros y Decoración")
                 col_e1, col_e2 = st.columns(2)
-                costo_acompañamientos = col_e1.number_input("Acompañamientos por persona ($) (Yuca, papa, ensalada...)", value=5000, step=500)
-                presupuesto_bebidas = col_e2.number_input("Presupuesto Total Bebidas e Hielo ($)", value=150000, step=10000)
+                costo_acompa = col_e1.number_input("Acompañamientos p/p ($)", value=6000)
+                costo_deco = col_e2.number_input("Presupuesto Decoración Neón ($)", value=100000)
                 
                 col_l1, col_l2 = st.columns(2)
-                costo_lugar = col_l1.number_input("Costo del Lugar / Rancho JP ($)", value=0, step=50000)
-                costo_dj = col_l2.number_input("Costo DJ Calao y Sonido ($)", value=200000, step=10000)
+                presu_bebidas = col_l1.number_input("Presupuesto Bebidas/Hielo ($)", value=250000)
+                costo_dj = col_l2.number_input("DJ Calao y Logística ($)", value=250000)
                 
-                imprevistos_pct = st.slider("Margen para Imprevistos/Desechables (%)", min_value=0, max_value=30, value=10)
+                margen = st.slider("Margen de Imprevistos (%)", 0, 20, 10)
                 
-                calcular = st.form_submit_button("💰 GENERAR PRESUPUESTO", use_container_width=True)
+                generar = st.form_submit_button("💰 CALCULAR PRESUPUESTO")
+
+            if generar:
+                # CÁLCULOS PROTEÍNA
+                k_carne = (total_carne * gr_carne) / 1000
+                gasto_carne = k_carne * precio_carne
+                k_pollo = (total_pollo * gr_pollo) / 1000
+                gasto_pollo = k_pollo * precio_pollo
                 
-            if calcular:
+                # CÁLCULOS PASABOCAS
+                total_unidades_pasa = total_invitados * unid_persona_ronda * num_rondas
+                gasto_pasabocas = total_unidades_pasa * precio_unid_pasa
+                
+                # TOTALES
+                gasto_acompa = total_invitados * costo_acompa
+                subtotal = gasto_carne + gasto_pollo + gasto_pasabocas + gasto_acompa + presu_bebidas + costo_dj + costo_deco
+                total_final = subtotal * (1 + (margen/100))
+                cuota = total_final / total_invitados if total_invitados > 0 else 0
+                
                 st.divider()
-                st.subheader("📊 Resultados del Presupuesto")
+                st.subheader("📊 Resumen de Inversión")
                 
-                # MATEMÁTICAS
-                kilos_carne = (total_carne * gr_carne) / 1000
-                total_gasto_carne = kilos_carne * precio_carne
+                r1, r2, r3, r4 = st.columns(4)
+                r1.metric("Kilos Carne", f"{k_carne:.1f} kg")
+                r2.metric("Kilos Pollo", f"{k_pollo:.1f} kg")
+                r3.metric("Total Pasabocas", f"{total_unidades_pasa} und")
+                r4.metric("Cuota p/p", f"${cuota:,.0f}")
+
+                # ÁREA DE IMPRESIÓN (Formato limpio)
+                resumen_print = f"""
+                ### 📝 PRESUPUESTO: POOL PARTY SALVADOR
+                ---
+                **Invitados Confirmados:** {total_invitados}
                 
-                kilos_pollo = (total_pollo * gr_pollo) / 1000
-                total_gasto_pollo = kilos_pollo * precio_pollo
+                **1. COMIDA PRINCIPAL:**
+                * Carne ({k_carne:.1f} kg): ${gasto_carne:,.0f}
+                * Pollo ({k_pollo:.1f} kg): ${gasto_pollo:,.0f}
+                * Acompañamientos: ${gasto_acompa:,.0f}
                 
-                total_gasto_vege = total_vege * precio_vege
+                **2. PASABOCAS ({nombre_pasa}):**
+                * Cantidad total: {total_unidades_pasa} unidades
+                * Detalle: {unid_persona_ronda} p/p x {num_rondas} rondas.
+                * Inversión pasabocas: ${gasto_pasabocas:,.0f}
                 
-                gasto_acompañamientos = total_invitados * costo_acompañamientos
+                **3. LOGÍSTICA Y DECO:**
+                * Decoración: ${costo_deco:,.0f}
+                * Bebidas e Hielo: ${presu_bebidas:,.0f}
+                * DJ Calao y Sonido: ${costo_dj:,.0f}
                 
-                subtotal_comida = total_gasto_carne + total_gasto_pollo + total_gasto_vege + gasto_acompañamientos
-                subtotal_logistica = presupuesto_bebidas + costo_lugar + costo_dj
+                **4. TOTALES:**
+                * Subtotal: ${subtotal:,.0f}
+                * Imprevistos ({margen}%): ${(total_final - subtotal):,.0f}
+                * **VALOR TOTAL ESTIMADO: ${total_final:,.0f}**
                 
-                subtotal_general = subtotal_comida + subtotal_logistica
-                monto_imprevistos = subtotal_general * (imprevistos_pct / 100)
+                ---
+                *Promedio por invitado: ${cuota:,.0f}*
+                """
+                st.markdown(resumen_print)
                 
-                gran_total = subtotal_general + monto_imprevistos
-                
-                costo_por_cabeza = gran_total / total_invitados if total_invitados > 0 else 0
-                
-                # MOSTRAR RESULTADOS
-                col_r1, col_r2, col_r3 = st.columns(3)
-                col_r1.metric("Total Carne a Comprar", f"{kilos_carne:.1f} Kg")
-                col_r2.metric("Total Pollo a Comprar", f"{kilos_pollo:.1f} Kg")
-                col_r3.metric("Costo por Invitado", f"${costo_por_cabeza:,.0f}")
-                
-                st.write("")
-                st.markdown(f"""
-                **Desglose de Costos:**
-                * 🥩 Gasto en Carne: **${total_gasto_carne:,.0f}**
-                * 🍗 Gasto en Pollo: **${total_gasto_pollo:,.0f}**
-                * 🥗 Gasto Vegetarianos: **${total_gasto_vege:,.0f}**
-                * 🥔 Acompañamientos: **${gasto_acompañamientos:,.0f}**
-                * 🍻 Bebidas e Hielo: **${presupuesto_bebidas:,.0f}**
-                * 🎧 Lugar y DJ: **${(costo_lugar + costo_dj):,.0f}**
-                * 💸 Imprevistos ({imprevistos_pct}%): **${monto_imprevistos:,.0f}**
-                """)
-                
-                st.error(f"### GRAN TOTAL ESTIMADO: ${gran_total:,.0f}")
+                # BOTÓN DE IMPRESIÓN (Simulado para que el usuario use Ctrl+P o copie)
+                st.button("🖨️ CLIC AQUÍ PARA PREPARAR IMPRESIÓN", on_click=lambda: st.info("Usa Ctrl + P en tu teclado para imprimir este resumen ahora."))
 
     else:
-        st.info("Aún no hay invitados registrados. ¡El rancho está vacío!")
-        if st.button("🔄 Verificar de nuevo"): st.rerun()
+        st.info("Aún no hay invitados registrados.")
+        if st.button("🔄 Reintentar"): st.rerun()
         
 except Exception as e:
-    st.error(f"Error al conectar con Supabase: {e}")
+    st.error(f"Error de conexión: {e}")
