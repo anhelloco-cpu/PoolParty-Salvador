@@ -293,7 +293,7 @@ try:
                         st.error(f"⚠️ Necesitas agregar una columna llamada 'datos_json' (tipo JSONB) en la tabla 'presupuestos_historicos'. Error: {e}")
 
         # ==========================================
-        # PESTAÑA 3: FINANCIAMIENTO (NUEVA)
+        # PESTAÑA 3: FINANCIAMIENTO 
         # ==========================================
         with tab3:
             st.header("🤝 Gestión de Aportes y Financiamiento")
@@ -313,14 +313,20 @@ try:
                     
                     c_resp1, c_resp2 = st.columns(2)
                     nombre_aportante = c_resp1.text_input("Nombre de la Persona (Ej. Mamá, Yo, Tío Juan)")
-                    tipo_aporte = c_resp2.selectbox("Tipo de Aporte", ["Asumir un Gasto Específico", "Monto Fijo ($)", "Porcentaje del Total (%)"])
+                    
+                    # AQUÍ ESTÁ LA MAGIA DEL SALDO FALTANTE
+                    tipo_aporte = c_resp2.selectbox("Tipo de Aporte", [
+                        "Asumir un Gasto Específico", 
+                        "Monto Fijo ($)", 
+                        "Porcentaje del Total General (%)",
+                        "Porcentaje del Saldo Faltante (%)"
+                    ])
                     
                     st.markdown("---")
                     st.write("**Detalles del Aporte**")
                     
                     c_det1, c_det2, c_det3 = st.columns(3)
                     
-                    # Diccionario con todos los gastos exactos que se calcularon
                     gastos_disponibles = {
                         "Proteína (Carne y Pollo)": res['gasto_carne'] + res['gasto_pollo'],
                         f"Pasabocas ({conf['nombre_pasa']})": res['gasto_pasabocas'],
@@ -345,15 +351,31 @@ try:
                         valor_calculado = 0
                         detalle_texto = ""
                         
+                        # Cálculos basados en la selección
                         if tipo_aporte == "Asumir un Gasto Específico" and item_especifico != "Seleccionar...":
                             valor_calculado = gastos_disponibles[item_especifico]
                             detalle_texto = f"Pago de {item_especifico}"
+                            
                         elif tipo_aporte == "Monto Fijo ($)" and monto_fijo > 0:
                             valor_calculado = monto_fijo
                             detalle_texto = "Aporte de monto fijo"
-                        elif tipo_aporte == "Porcentaje del Total (%)" and porcentaje_fijo > 0:
+                            
+                        elif tipo_aporte == "Porcentaje del Total General (%)" and porcentaje_fijo > 0:
                             valor_calculado = gran_total * (porcentaje_fijo / 100)
-                            detalle_texto = f"Aporte del {porcentaje_fijo}% del total"
+                            detalle_texto = f"Aporte del {porcentaje_fijo}% del total general"
+                            
+                        elif tipo_aporte == "Porcentaje del Saldo Faltante (%)" and porcentaje_fijo > 0:
+                            # Calcular cuánto falta ANTES de agregar este nuevo aporte
+                            recogido_hasta_ahora = sum(ap['monto'] for ap in st.session_state.aportantes)
+                            saldo_actual = gran_total - recogido_hasta_ahora
+                            
+                            if saldo_actual <= 0:
+                                st.error("¡El presupuesto ya está cubierto en su totalidad! No hay saldo faltante.")
+                                valor_calculado = 0
+                            else:
+                                valor_calculado = saldo_actual * (porcentaje_fijo / 100)
+                                detalle_texto = f"Aporte del {porcentaje_fijo}% del saldo faltante"
+                                
                         else:
                             st.error("Verifica los datos del aporte. Selecciona un item, un monto o un porcentaje mayor a 0.")
                             valor_calculado = 0
@@ -379,8 +401,10 @@ try:
                     
                     if faltante > 0:
                         c_bal2.metric("Faltante por Cubrir", f"${faltante:,.0f}", delta="Aún falta", delta_color="inverse")
+                    elif faltante < 0:
+                         c_bal2.metric("Sobrante a favor", f"${abs(faltante):,.0f}", delta="¡Superaron la meta!", delta_color="normal")
                     else:
-                        c_bal2.metric("Faltante por Cubrir", "$0", delta="¡Presupuesto Completado!", delta_color="normal")
+                        c_bal2.metric("Faltante por Cubrir", "$0", delta="¡Presupuesto Exacto Cubierto!", delta_color="normal")
                     
                     # Barra de progreso visual
                     progreso = min(total_recogido / gran_total, 1.0)
