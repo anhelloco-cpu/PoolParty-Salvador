@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
+# --- NUEVAS IMPORTACIONES PARA PDF, WORD Y FECHAS (NO SE QUITÓ NADA) ---
+from io import BytesIO
+from datetime import datetime
+from fpdf import FPDF
+from docx import Document
+
 # --- CONFIGURACIÓN SUPABASE ---
 SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
 SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
@@ -196,8 +202,70 @@ try:
                 """
                 st.markdown(resumen_print)
                 
-                # BOTÓN DE IMPRESIÓN 
+                # BOTÓN DE IMPRESIÓN ORIGINAL
                 st.button("🖨️ PREPARAR PARA IMPRIMIR (Ctrl + P)", on_click=lambda: st.info("Usa Ctrl + P (o Cmd + P en Mac) para guardar este reporte en PDF o imprimirlo."))
+
+                # ====================================================================
+                # NUEVA SECCIÓN DE EXPORTACIÓN Y GUARDADO (AGREGADA DIRECTAMENTE AQUÍ)
+                # ====================================================================
+                st.divider()
+                st.subheader("💾 Opciones de Exportación")
+                col_d1, col_d2, col_d3 = st.columns(3)
+
+                # 1. GENERAR PDF EN MEMORIA
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=11)
+                for linea in resumen_print.split('\n'):
+                    # Limpiamos el markdown para que el PDF se vea limpio
+                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50).strip()
+                    if texto_limpio:
+                        pdf.cell(0, 7, txt=texto_limpio, ln=True)
+                pdf_bytes = pdf.output(dest='S').encode('latin1', 'ignore')
+
+                col_d1.download_button(
+                    label="📄 Descargar como PDF", 
+                    data=pdf_bytes, 
+                    file_name="Presupuesto_PoolParty.pdf", 
+                    mime="application/pdf"
+                )
+
+                # 2. GENERAR WORD EN MEMORIA
+                doc = Document()
+                doc.add_heading('Reporte Financiero Pool Party', 0)
+                for linea in resumen_print.split('\n'):
+                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50).strip()
+                    if texto_limpio:
+                        doc.add_paragraph(texto_limpio)
+                b = BytesIO()
+                doc.save(b)
+                word_bytes = b.getvalue()
+
+                col_d2.download_button(
+                    label="📝 Descargar como Word", 
+                    data=word_bytes, 
+                    file_name="Presupuesto_PoolParty.docx", 
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+
+                # 3. GUARDAR EN SUPABASE
+                # Preparamos los datos a guardar
+                datos_guardar = {
+                    "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "total_invitados": total_invitados,
+                    "costos_variables": total_variables,
+                    "costos_fijos": total_fijos,
+                    "gran_total": gran_total,
+                    "cuota_por_persona": cuota_por_persona
+                }
+
+                if col_d3.button("☁️ Guardar Presupuesto en Supabase"):
+                    try:
+                        # Asegúrate de crear una tabla llamada 'presupuestos_historicos' en Supabase
+                        supabase.table("presupuestos_historicos").insert(datos_guardar).execute()
+                        st.success("✅ ¡Presupuesto guardado exitosamente en tu base de datos!")
+                    except Exception as e:
+                        st.error(f"⚠️ Error al guardar. Verifica que creaste la tabla 'presupuestos_historicos' en Supabase. Detalle: {e}")
 
     else:
         st.info("Aún no hay invitados registrados en la base de datos.")
