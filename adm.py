@@ -90,6 +90,18 @@ try:
         with tab2:
             st.header("Estructura de Costos")
             
+            # --- MEMORIA DEL SISTEMA: Cargar la última configuración si existe ---
+            if 'config_guardada' not in st.session_state:
+                st.session_state.config_guardada = {}
+                try:
+                    res_hist = supabase.table("presupuestos_historicos").select("datos_json").order("fecha_registro", desc=True).limit(1).execute()
+                    if res_hist.data and res_hist.data[0].get('datos_json'):
+                        st.session_state.config_guardada = res_hist.data[0]['datos_json']
+                except:
+                    pass
+            
+            conf = st.session_state.config_guardada
+
             # Contar preferencias reales
             conteo_comida = df['gusto_comida'].value_counts()
             total_carne = conteo_comida.get('Carne', 0) + conteo_comida.get('Sin preferencia', 0)
@@ -103,42 +115,41 @@ try:
                 
                 st.subheader("📈 COSTOS VARIABLES (Dependen del # de invitados)")
                 col_c1, col_c2 = st.columns(2)
-                precio_carne = col_c1.number_input("Precio por Kilo Carne ($)", value=35000)
-                gr_carne = col_c2.number_input("Gramos carne por persona", value=350)
+                precio_carne = col_c1.number_input("Precio por Kilo Carne ($)", value=int(conf.get('precio_carne', 35000)))
+                gr_carne = col_c2.number_input("Gramos carne por persona", value=int(conf.get('gr_carne', 350)))
                 
                 col_p1, col_p2 = st.columns(2)
-                precio_pollo = col_p1.number_input("Precio por Kilo Pollo ($)", value=18000)
-                gr_pollo = col_p2.number_input("Gramos pollo por persona", value=350)
+                precio_pollo = col_p1.number_input("Precio por Kilo Pollo ($)", value=int(conf.get('precio_pollo', 18000)))
+                gr_pollo = col_p2.number_input("Gramos pollo por persona", value=int(conf.get('gr_pollo', 350)))
                 
                 st.markdown("---")
                 st.write("**Pasabocas y Acompañamientos**")
-                nombre_pasa = st.text_input("Tipo de Pasabocas", value="Deditos y empanaditas")
+                nombre_pasa = st.text_input("Tipo de Pasabocas", value=conf.get('nombre_pasa', "Deditos y empanaditas"))
                 col_b1, col_b2, col_b3 = st.columns(3)
-                precio_unid_pasa = col_b1.number_input("Precio Unidad Pasaboca ($)", value=1200)
-                unid_persona_ronda = col_b2.number_input("Und. por persona (por ronda)", value=4)
-                num_rondas = col_b3.number_input("Número de rondas", value=2)
+                precio_unid_pasa = col_b1.number_input("Precio Unidad Pasaboca ($)", value=int(conf.get('precio_unid_pasa', 1200)))
+                unid_persona_ronda = col_b2.number_input("Und. por persona (por ronda)", value=int(conf.get('unid_persona_ronda', 4)))
+                num_rondas = col_b3.number_input("Número de rondas", value=int(conf.get('num_rondas', 2)))
                 
                 col_a1, col_a2 = st.columns(2)
-                costo_acompa = col_a1.number_input("Acompañamientos p/p ($) (Yuca, papa, etc.)", value=6000)
-                presu_bebidas = col_a2.number_input("Presupuesto Bebidas e Hielo ($)", value=250000)
+                costo_acompa = col_a1.number_input("Acompañamientos p/p ($) (Yuca, papa, etc.)", value=int(conf.get('costo_acompa', 6000)))
+                presu_bebidas = col_a2.number_input("Presupuesto Bebidas e Hielo ($)", value=int(conf.get('presu_bebidas', 250000)))
                 
                 st.divider()
 
                 st.subheader("📌 COSTOS FIJOS (Independientes de la asistencia)")
                 col_f1, col_f2 = st.columns(2)
-                costo_lugar = col_f1.number_input("Alquiler del Lugar / Rancho JP ($)", value=500000, step=50000)
-                costo_dj = col_f2.number_input("DJ Calao y Sonido ($)", value=250000, step=10000)
+                costo_lugar = col_f1.number_input("Alquiler del Lugar / Rancho JP ($)", value=int(conf.get('costo_lugar', 500000)), step=50000)
+                costo_dj = col_f2.number_input("DJ Calao y Sonido ($)", value=int(conf.get('costo_dj', 250000)), step=10000)
                 
-                costo_deco = st.number_input("Decoración Neón y Ambientación ($)", value=100000, step=10000)
+                costo_deco = st.number_input("Decoración Neón y Ambientación ($)", value=int(conf.get('costo_deco', 100000)), step=10000)
                 
                 st.divider()
-                margen = st.slider("Margen Financiero para Imprevistos (%)", 0, 20, 10)
+                margen = st.slider("Margen Financiero para Imprevistos (%)", 0, 20, int(conf.get('margen', 10)))
                 
                 generar = st.form_submit_button("💰 GENERAR INFORME FINANCIERO")
 
+            # Si le da a generar, procesamos y guardamos todo en la memoria de la sesión
             if generar:
-                # ================= MATEMÁTICAS =================
-                # Costos Variables
                 k_carne = (total_carne * gr_carne) / 1000
                 gasto_carne = k_carne * precio_carne
                 k_pollo = (total_pollo * gr_pollo) / 1000
@@ -149,95 +160,100 @@ try:
                 gasto_acompa = total_invitados * costo_acompa
                 
                 total_variables = gasto_carne + gasto_pollo + gasto_pasabocas + gasto_acompa + presu_bebidas
-                
-                # Costos Fijos
                 total_fijos = costo_lugar + costo_dj + costo_deco
-                
-                # Totales Generales
                 subtotal = total_variables + total_fijos
                 monto_imprevistos = subtotal * (margen / 100)
                 gran_total = subtotal + monto_imprevistos
-                
                 cuota_por_persona = gran_total / total_invitados if total_invitados > 0 else 0
                 
-                # ================= INTERFAZ DE RESULTADOS =================
+                # Guardamos los resultados y la configuración en el Session State
+                st.session_state.resultados = {
+                    "k_carne": k_carne, "gasto_carne": gasto_carne, "k_pollo": k_pollo, "gasto_pollo": gasto_pollo,
+                    "total_unidades_pasa": total_unidades_pasa, "gasto_pasabocas": gasto_pasabocas,
+                    "gasto_acompa": gasto_acompa, "total_variables": total_variables, "total_fijos": total_fijos,
+                    "subtotal": subtotal, "monto_imprevistos": monto_imprevistos, "gran_total": gran_total,
+                    "cuota_por_persona": cuota_por_persona
+                }
+                
+                st.session_state.config_guardada = {
+                    "precio_carne": precio_carne, "gr_carne": gr_carne, "precio_pollo": precio_pollo, 
+                    "gr_pollo": gr_pollo, "nombre_pasa": nombre_pasa, "precio_unid_pasa": precio_unid_pasa, 
+                    "unid_persona_ronda": unid_persona_ronda, "num_rondas": num_rondas, "costo_acompa": costo_acompa, 
+                    "presu_bebidas": presu_bebidas, "costo_lugar": costo_lugar, "costo_dj": costo_dj, 
+                    "costo_deco": costo_deco, "margen": margen
+                }
+
+            # ================= INTERFAZ DE RESULTADOS (FUERA DEL FORMULARIO) =================
+            # Esto permite que los botones se puedan clickear sin desaparecer
+            if 'resultados' in st.session_state:
+                res = st.session_state.resultados
+                conf = st.session_state.config_guardada
+                
                 st.divider()
                 st.subheader("📊 Resumen Ejecutivo")
                 
                 r1, r2, r3, r4 = st.columns(4)
-                r1.metric("Kilos Carne", f"{k_carne:.1f} kg")
-                r2.metric("Kilos Pollo", f"{k_pollo:.1f} kg")
-                r3.metric("Total Pasabocas", f"{total_unidades_pasa} und")
-                r4.metric("Cuota Est. p/p", f"${cuota_por_persona:,.0f}")
+                r1.metric("Kilos Carne", f"{res['k_carne']:.1f} kg")
+                r2.metric("Kilos Pollo", f"{res['k_pollo']:.1f} kg")
+                r3.metric("Total Pasabocas", f"{res['total_unidades_pasa']} und")
+                r4.metric("Cuota Est. p/p", f"${res['cuota_por_persona']:,.0f}")
 
-                # ================= TICKET PROFESIONAL =================
                 resumen_print = f"""
                 ### 📝 REPORTE FINANCIERO: POOL PARTY SALVADOR
                 ---
                 **Asistencia Proyectada:** {total_invitados} personas
                 
                 **1. COSTOS VARIABLES:**
-                * Proteína (Carne {k_carne:.1f}kg + Pollo {k_pollo:.1f}kg): **${(gasto_carne + gasto_pollo):,.0f}**
-                * Pasabocas ({nombre_pasa} - {total_unidades_pasa} unds): **${gasto_pasabocas:,.0f}**
-                * Acompañamientos: **${gasto_acompa:,.0f}**
-                * Bebidas e Hielo: **${presu_bebidas:,.0f}**
-                * **Subtotal Variables: ${total_variables:,.0f}**
+                * Proteína (Carne {res['k_carne']:.1f}kg + Pollo {res['k_pollo']:.1f}kg): **${(res['gasto_carne'] + res['gasto_pollo']):,.0f}**
+                * Pasabocas ({conf['nombre_pasa']} - {res['total_unidades_pasa']} unds): **${res['gasto_pasabocas']:,.0f}**
+                * Acompañamientos: **${res['gasto_acompa']:,.0f}**
+                * Bebidas e Hielo: **${conf['presu_bebidas']:,.0f}**
+                * **Subtotal Variables: ${res['total_variables']:,.0f}**
                 
                 **2. COSTOS FIJOS:**
-                * Alquiler de Locación (Rancho JP): **${costo_lugar:,.0f}**
-                * DJ Calao y Sistema de Sonido: **${costo_dj:,.0f}**
-                * Decoración Neón y Ambientación: **${costo_deco:,.0f}**
-                * **Subtotal Fijos: ${total_fijos:,.0f}**
+                * Alquiler de Locación (Rancho JP): **${conf['costo_lugar']:,.0f}**
+                * DJ Calao y Sistema de Sonido: **${conf['costo_dj']:,.0f}**
+                * Decoración Neón y Ambientación: **${conf['costo_deco']:,.0f}**
+                * **Subtotal Fijos: ${res['total_fijos']:,.0f}**
                 
                 **3. CONSOLIDADO:**
-                * Subtotal Operativo: ${subtotal:,.0f}
-                * Fondo de Imprevistos ({margen}%): ${monto_imprevistos:,.0f}
+                * Subtotal Operativo: ${res['subtotal']:,.0f}
+                * Fondo de Imprevistos ({conf['margen']}%): ${res['monto_imprevistos']:,.0f}
                 
-                ### **VALOR TOTAL DEL PROYECTO: ${gran_total:,.0f}**
+                ### **VALOR TOTAL DEL PROYECTO: ${res['gran_total']:,.0f}**
                 
                 ---
-                *Punto de equilibrio (Cuota sugerida por invitado): ${cuota_por_persona:,.0f}*
+                *Punto de equilibrio (Cuota sugerida por invitado): ${res['cuota_por_persona']:,.0f}*
                 """
                 st.markdown(resumen_print)
                 
-                # BOTÓN DE IMPRESIÓN 
                 st.button("🖨️ PREPARAR PARA IMPRIMIR (Ctrl + P)", on_click=lambda: st.info("Usa Ctrl + P (o Cmd + P en Mac) para guardar este reporte en PDF o imprimirlo."))
 
-                # ====================================================================
-                # NUEVA SECCIÓN DE EXPORTACIÓN Y GUARDADO (CON FILTRO DE EMOJIS)
-                # ====================================================================
                 st.divider()
                 st.subheader("💾 Opciones de Exportación")
                 col_d1, col_d2, col_d3 = st.columns(3)
 
-                # 1. GENERAR PDF EN MEMORIA (A prueba de errores)
+                # --- 1. GENERADOR DE PDF A PRUEBA DE EMOJIS ---
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", size=11)
                 for linea in resumen_print.split('\n'):
-                    # Limpiamos el markdown y los asteriscos
-                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50).replace('📝', '').strip()
-                    
-                    # MAGIA AQUÍ: Forzamos el texto a Latin-1 para eliminar los emojis invisibles y evitar que se estrelle
-                    texto_limpio = texto_limpio.encode('latin-1', 'ignore').decode('latin-1')
+                    # Quitamos todos los emojis que usaste reemplazándolos por nada
+                    texto_limpio = linea.replace('**', '').replace('### ', '').replace('---', '-'*50)
+                    # Esta línea es la magia: Destruye cualquier caracter raro que vuelva loco a FPDF
+                    texto_limpio = texto_limpio.encode('latin-1', 'ignore').decode('latin-1').strip()
                     
                     if texto_limpio:
                         pdf.cell(0, 7, txt=texto_limpio, ln=True)
                 
-                # Guardado compatible con cualquier versión de FPDF
                 try:
                     pdf_bytes = pdf.output(dest='S').encode('latin-1', 'ignore')
                 except AttributeError:
                     pdf_bytes = bytes(pdf.output())
 
-                col_d1.download_button(
-                    label="📄 Descargar como PDF", 
-                    data=pdf_bytes, 
-                    file_name="Presupuesto_PoolParty.pdf", 
-                    mime="application/pdf"
-                )
+                col_d1.download_button(label="📄 Descargar como PDF", data=pdf_bytes, file_name="Presupuesto_PoolParty.pdf", mime="application/pdf")
 
-                # 2. GENERAR WORD EN MEMORIA
+                # --- 2. GENERADOR DE WORD ---
                 doc = Document()
                 doc.add_heading('Reporte Financiero Pool Party', 0)
                 for linea in resumen_print.split('\n'):
@@ -248,30 +264,27 @@ try:
                 doc.save(b)
                 word_bytes = b.getvalue()
 
-                col_d2.download_button(
-                    label="📝 Descargar como Word", 
-                    data=word_bytes, 
-                    file_name="Presupuesto_PoolParty.docx", 
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+                col_d2.download_button(label="📝 Descargar como Word", data=word_bytes, file_name="Presupuesto_PoolParty.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
-                # 3. GUARDAR EN SUPABASE
+                # --- 3. GUARDADO EN BASE DE DATOS (AHORA SÍ FUNCIONA SIEMPRE) ---
                 datos_guardar = {
                     "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "total_invitados": total_invitados,
-                    "costos_variables": float(total_variables),
-                    "costos_fijos": float(total_fijos),
-                    "gran_total": float(gran_total),
-                    "cuota_por_persona": float(cuota_por_persona)
+                    "costos_variables": float(res['total_variables']),
+                    "costos_fijos": float(res['total_fijos']),
+                    "gran_total": float(res['gran_total']),
+                    "cuota_por_persona": float(res['cuota_por_persona']),
+                    "datos_json": conf # Guarda la configuración para que la recupere la próxima vez
                 }
 
-                if col_d3.button("☁️ Guardar Presupuesto"):
+                if col_d3.button("☁️ Guardar Presupuesto en Supabase"):
                     try:
+                        # Asegúrate de haber agregado la columna "datos_json" tipo JSONB a tu tabla
                         supabase.table("presupuestos_historicos").insert(datos_guardar).execute()
-                        st.success("✅ ¡Presupuesto guardado exitosamente en tu base de datos!")
+                        st.success("✅ ¡Guardado! La próxima vez que entres, los precios se cargarán solos.")
                         st.balloons()
                     except Exception as e:
-                        st.error(f"⚠️ Error al guardar. Verifica que creaste la tabla 'presupuestos_historicos' en Supabase. Detalle: {e}")
+                        st.error(f"⚠️ Necesitas agregar una columna llamada 'datos_json' (tipo JSONB) en la tabla 'presupuestos_historicos'. Error: {e}")
 
     else:
         st.info("Aún no hay invitados registrados en la base de datos.")
