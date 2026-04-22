@@ -269,7 +269,7 @@ else:
                         Desde el fin del Pre-Icfes hasta el amanecer.
                         
                         <div class="marquee">
-                            <p>⚡ PRESENTACIÓN ESPECIAL: DJ CALAO ⚡ DJ CALAO ⚡ DJ CALAO ⚡</p>
+                            <p>⚡PRESENTACIÓN ESPECIAL:⚡⚡ LEINNER DE LA OSSA Y ROBERTICO LOPEZ ⚡⚡DJ CALAO ⚡⚡</p>
                         </div>
                     </div>
                 </details>
