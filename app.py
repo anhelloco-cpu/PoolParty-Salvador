@@ -260,7 +260,7 @@ else:
                 </div>
 
                 <details class="info-accordion">
-                    <summary>🔽 VER LUGAR Y DJ</summary>
+                    <summary>🔽 VER LUGAR, CANTAUTOR Y DJ </summary>
                     <div class="details-content">
                         <strong style="color:#00ffff;">📍 RANCHO JP</strong><br>
                         Barrio el Cañito, Km 1, sobre la Troncal, Monteria.<br>
