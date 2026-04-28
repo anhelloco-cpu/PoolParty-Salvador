@@ -111,6 +111,53 @@ div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within {
 </style>
 """, unsafe_allow_html=True)
 
+# --- 2. LÓGICA DE REGISTRO ---
+if 'confirmando' not in st.session_state: 
+    st.session_state.confirmando = False
+
+if not st.session_state.confirmando:
+    if st.button("CONFIRMAR ASISTENCIA"):
+        st.session_state.confirmando = True
+        st.rerun()
+
+if st.session_state.confirmando:
+    with st.form("registro"):
+        st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff; margin-bottom: 20px;'>ESCRIBE TUS DATOS</h3>", unsafe_allow_html=True)
+        
+        # Campos de texto uno debajo del otro
+        nom = st.text_input("Nombre")
+        ape = st.text_input("Apellido")
+        gusto_form = st.selectbox("Preferencia de Comida", ["Carne", "Pollo", "Vegetariano", "Sin preferencia"])
+        cancion = st.text_input("Tu canción favorita")
+        
+        st.write("") # Espacio antes de los botones
+        
+        # Botones de acción
+        c1, c2 = st.columns(2)
+        with c1:
+            submit_btn = st.form_submit_button("REGISTRARME", use_container_width=True)
+        with c2:
+            back_btn = st.form_submit_button("VOLVER", use_container_width=True)
+            
+        if submit_btn:
+            if nom and ape:
+                try:
+                    supabase.table("invitados_pool_party").insert({
+                        "nombre": nom, 
+                        "apellido": ape,
+                        "gusto_comida": gusto_form,
+                        "disco_preferido": cancion
+                    }).execute()
+                    st.snow()
+                    st.success(f"¡LISTO {nom.upper()}! NOS VEMOS EN EL RANCHO.")
+                    st.session_state.confirmando = False
+                except: st.error("Error de conexión.")
+            else:
+                st.warning("El nombre y apellido son obligatorios.")
+                
+        if back_btn:
+            st.session_state.confirmando = False
+            st.rerun()
 
 
 # --- 3. HTML DE LA INVITACIÓN ---
