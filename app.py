@@ -5,14 +5,43 @@ import os
 from supabase import create_client, Client
 
 # --- CONFIGURACIÓN SUPABASE ---
-SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
-SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
+SUPABASE_URL = "https://pnpwrfjeiqwibkbqmswv.supabase.co"
+SUPABASE_KEY = "sb_publishable_7UMYHjae3aVWA1S9_LAkVw_Ot2CJluw"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Configuración inicial
-st.set_page_config(page_title="Pool Party Salvador", layout="centered", initial_sidebar_state="collapsed")
+# --- CARGAR CONFIGURACIÓN ACTIVA DESDE EL PANEL ADMIN ---
+CONFIG_DEFAULT = {
+    "nombre_festejado": "SALVADOR",
+    "titulo_pagina": "Pool Party Salvador",
+    "subtitulo": "",
+    "mostrar_nombre_sobre_foto": False,
+    "fecha_cronometro": "April 22, 2026 23:59:59",
+    "fecha_texto": "25 de abril",
+    "lugar_nombre": "RANCHO JP",
+    "direccion": "Barrio el Cañito, Km 1, sobre la Troncal, Monteria.",
+    "horario": "Desde el fin del Pre-Icfes hasta el amanecer.",
+    "titulo_acordeon": "🔽 VER LUGAR, CANTAUTOR Y DJ",
+    "texto_marquesina": "⚡PRESENTACIÓN ESPECIAL:⚡⚡ LEINNER DE LA OSSA Y ROBERTICO LOPEZ ⚡⚡DJ CALAO ⚡⚡",
+    "mensaje_exito": "NOS VEMOS EN EL RANCHO.",
+    "opciones_comida": "Carne, Pollo, Vegetariano, Sin preferencia",
+    "foto_url": "",
+    "audio_url": ""
+}
 
-# 1. FUNCIÓN CARGAR RECURSOS (Imagen y Audio)
+cfg = CONFIG_DEFAULT.copy()
+try:
+    res_cfg = supabase.table("configuracion_invitacion").select("*").eq("id", 1).execute()
+    if res_cfg.data:
+        for k, v in res_cfg.data[0].items():
+            if v is not None:
+                cfg[k] = v
+except Exception:
+    pass
+
+# Configuración inicial
+st.set_page_config(page_title=cfg["titulo_pagina"], layout="centered", initial_sidebar_state="collapsed")
+
+# 1. FUNCIÓN CARGAR RECURSOS LOCALES (RESPALDO SI NO SE SUBIÓ DESDE EL PANEL)
 def cargar_archivo_local(nombre_archivo, tipo="image"):
     rutas_posibles = [
         os.path.join(os.path.dirname(__file__), nombre_archivo),
@@ -26,8 +55,8 @@ def cargar_archivo_local(nombre_archivo, tipo="image"):
             return f"data:{'image/jpeg' if tipo=='image' else 'audio/mpeg'};base64,{encoded_string}"
     return None
 
-IMAGE_URL = cargar_archivo_local("invitacion.jpg")
-AUDIO_DATA = cargar_archivo_local("musica.mp3", tipo="audio") 
+IMAGE_URL = cfg.get("foto_url") or cargar_archivo_local("invitacion.jpg", tipo="image")
+AUDIO_DATA = cfg.get("audio_url") or cargar_archivo_local("musica.mp3", tipo="audio")
 
 # --- ESTILOS MEJORADOS (Letras blancas y Formulario Neón) ---
 st.markdown("""
@@ -121,18 +150,20 @@ if not st.session_state.confirmando:
         st.rerun()
 
 if st.session_state.confirmando:
+    opciones_lista = [x.strip() for x in cfg["opciones_comida"].split(",") if x.strip()]
+    if not opciones_lista:
+        opciones_lista = ["Carne", "Pollo", "Vegetariano", "Sin preferencia"]
+
     with st.form("registro"):
         st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff; margin-bottom: 20px;'>ESCRIBE TUS DATOS</h3>", unsafe_allow_html=True)
         
-        # Campos de texto uno debajo del otro
         nom = st.text_input("Nombre")
         ape = st.text_input("Apellido")
-        gusto_form = st.selectbox("Preferencia de Comida", ["Carne", "Pollo", "Vegetariano", "Sin preferencia"])
+        gusto_form = st.selectbox("Preferencia de Comida", opciones_lista)
         cancion = st.text_input("Tu canción favorita")
         
-        st.write("") # Espacio antes de los botones
+        st.write("")
         
-        # Botones de acción
         c1, c2 = st.columns(2)
         with c1:
             submit_btn = st.form_submit_button("REGISTRARME", use_container_width=True)
@@ -149,9 +180,10 @@ if st.session_state.confirmando:
                         "disco_preferido": cancion
                     }).execute()
                     st.snow()
-                    st.success(f"¡LISTO {nom.upper()}! NOS VEMOS EN EL RANCHO.")
+                    st.success(f"¡LISTO {nom.upper()}! {cfg['mensaje_exito']}")
                     st.session_state.confirmando = False
-                except: st.error("Error de conexión.")
+                except Exception:
+                    st.error("Error de conexión.")
             else:
                 st.warning("El nombre y apellido son obligatorios.")
                 
@@ -159,11 +191,21 @@ if st.session_state.confirmando:
             st.session_state.confirmando = False
             st.rerun()
 
-
 # --- 3. HTML DE LA INVITACIÓN ---
 if not IMAGE_URL:
-    st.error("❌ No encuentro 'invitacion.jpg'.")
+    st.error("❌ No encuentro la imagen de fondo. Súbela desde el panel de configuración.")
 else:
+    audio_tag = f'<audio id="bgMusic" loop autoplay><source src="{AUDIO_DATA}"></audio>' if AUDIO_DATA else ""
+
+    bloque_nombre = ""
+    if cfg.get("mostrar_nombre_sobre_foto"):
+        bloque_nombre = f"""
+        <div class="host-title">
+            <h1>{cfg['nombre_festejado']}</h1>
+            <p>{cfg.get('subtitulo', '')}</p>
+        </div>
+        """
+
     codigo_html_js = f"""
     <!DOCTYPE html>
     <html>
@@ -187,6 +229,30 @@ else:
             position: absolute;
             top: 0; left: 0;
             z-index: 1;
+        }}
+
+        .host-title {{
+            position: absolute;
+            z-index: 10;
+            width: 100%;
+            top: 10%;
+            left: 0;
+            text-align: center;
+            color: white;
+        }}
+        .host-title h1 {{
+            margin: 0;
+            font-size: 2.5rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            text-shadow: 0 0 12px #00ffff, 0 0 24px #ff00ff;
+        }}
+        .host-title p {{
+            margin: 4px 0 0 0;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            color: #00ffff;
+            text-shadow: 0 0 8px #000;
         }}
 
         .overlay-content {{
@@ -244,10 +310,11 @@ else:
     </style>
     </head>
     <body>
-        <audio id="bgMusic" loop autoplay><source src="{AUDIO_DATA}" type="audio/mpeg"></audio>
+        {audio_tag}
         
         <div class="invitation-container">
             <img src="{IMAGE_URL}" class="invitation-bg">
+            {bloque_nombre}
             
             <div class="overlay-content">
                 <div class="timer-block" id="timerBlock">
@@ -260,16 +327,16 @@ else:
                 </div>
 
                 <details class="info-accordion">
-                    <summary>🔽 VER LUGAR, CANTAUTOR Y DJ </summary>
+                    <summary>{cfg['titulo_acordeon']}</summary>
                     <div class="details-content">
-                        <strong style="color:#00ffff;">📍 RANCHO JP</strong><br>
-                        Barrio el Cañito, Km 1, sobre la Troncal, Monteria.<br>
-                        <strong style="color:#00ffff;">📅 FECHA:</strong> 25 de abril<br>
+                        <strong style="color:#00ffff;">📍 {cfg['lugar_nombre']}</strong><br>
+                        {cfg['direccion']}<br>
+                        <strong style="color:#00ffff;">📅 FECHA:</strong> {cfg['fecha_texto']}<br>
                         <strong style="color:#ff00ff;">🌅 HORARIO:</strong><br>
-                        Desde el fin del Pre-Icfes hasta el amanecer.
+                        {cfg['horario']}
                         
                         <div class="marquee">
-                            <p>⚡PRESENTACIÓN ESPECIAL:⚡⚡ LEINNER DE LA OSSA Y ROBERTICO LOPEZ ⚡⚡DJ CALAO ⚡⚡</p>
+                            <p>{cfg['texto_marquesina']}</p>
                         </div>
                     </div>
                 </details>
@@ -277,8 +344,8 @@ else:
         </div>
 
         <script>
-            const targetDate = new Date('April 22, 2026 23:59:59').getTime();
-            setInterval(() => {{
+            const targetDate = new Date('{cfg['fecha_cronometro']}').getTime();
+            const timerInterval = setInterval(() => {{
                 const now = new Date().getTime();
                 const d = targetDate - now;
                 if (d > 0) {{
@@ -286,6 +353,9 @@ else:
                     document.getElementById('hours').innerText = String(Math.floor((d % 86400000) / 3600000)).padStart(2, '0');
                     document.getElementById('minutes').innerText = String(Math.floor((d % 3600000) / 60000)).padStart(2, '0');
                     document.getElementById('seconds').innerText = String(Math.floor((d % 60000) / 1000)).padStart(2, '0');
+                }} else {{
+                    clearInterval(timerInterval);
+                    document.getElementById('timerBlock').innerHTML = '<div style="color:#ff00ff; font-size:0.9rem; padding:4px;">¡HOY ES LA FIESTA!</div>';
                 }}
             }}, 1000);
 
