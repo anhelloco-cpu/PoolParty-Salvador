@@ -5,15 +5,16 @@ from io import BytesIO
 from datetime import datetime, date, time as dt_time
 from fpdf import FPDF
 from docx import Document
-import base64
-import time
 from PIL import Image
 import colorsys
 import urllib.request
+import base64
+import time
 
 # --- CONFIGURACIÓN SUPABASE ---
-SUPABASE_URL = "https://pnpwrfjeiqwibkbqmswv.supabase.co"
-SUPABASE_KEY = "sb_publishable_7UMYHjae3aVWA1S9_LAkVw_Ot2CJluw"
+# Verifica que aquí estén la URL y la KEY de tu proyecto NUEVO de Supabase
+SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
+SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Configuración de la página
@@ -57,7 +58,10 @@ CONFIG_DEFAULT = {
     "mensaje_exito": "NOS VEMOS EN EL RANCHO.",
     "opciones_comida": "Carne, Pollo, Vegetariano, Sin preferencia",
     "foto_url": "",
-    "audio_url": ""
+    "audio_url": "",
+    "color_primario": "#00ffff",
+    "color_secundario": "#ff00ff",
+    "color_fondo": "#060e1d"
 }
 
 def cargar_config_invitacion():
@@ -87,7 +91,6 @@ def subir_archivo_supabase(uploaded_file, prefijo):
         )
         return supabase.storage.from_("media_fiestas").get_public_url(nombre_archivo)
     except Exception:
-        # Respaldo automático en Base64 si el bucket aún no tiene permisos
         b64 = base64.b64encode(archivo_bytes).decode()
         return f"data:{mime};base64,{b64}"
 
@@ -98,10 +101,6 @@ def obtener_vista_previa(valor_url):
     if valor_url.startswith("data:") and "," in valor_url:
         return base64.b64decode(valor_url.split(",", 1)[1])
     return valor_url
-# Agrega estas 3 líneas dentro de tu diccionario CONFIG_DEFAULT:
-    "color_primario": "#00ffff",
-    "color_secundario": "#ff00ff",
-    "color_fondo": "#060e1d",
 
 def obtener_bytes_imagen(url_o_b64):
     """Obtiene los bytes de la imagen actual (sea Base64 o URL de Supabase Storage)."""
@@ -138,7 +137,6 @@ def extraer_colores_de_imagen(img_bytes):
             r, g, b = colorsys.hsv_to_rgb(h % 1.0, min(max(s, 0.0), 1.0), min(max(v, 0.0), 1.0))
             return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
 
-        # 1. Color principal (líneas, cronómetro, botón): el más vibrante y visible
         vibrantes = sorted(
             candidatos,
             key=lambda x: (x[2] * (0.4 + 0.6 * x[3])) * (x[0] ** 0.25),
@@ -147,7 +145,6 @@ def extraer_colores_de_imagen(img_bytes):
         _, h1, s1, v1 = vibrantes[0]
         c_primario = hsv_a_hex(h1, max(s1, 0.55) if s1 > 0.12 else s1, max(v1, 0.80))
 
-        # 2. Color secundario (etiquetas, borde del formulario, marquesina)
         sec_elegido = None
         for item in vibrantes[1:]:
             dist_hue = min(abs(item[1] - h1), 1.0 - abs(item[1] - h1))
@@ -161,7 +158,6 @@ def extraer_colores_de_imagen(img_bytes):
         else:
             c_secundario = hsv_a_hex((h1 + 0.08) % 1.0, max(s1 * 0.8, 0.40), 0.95)
 
-        # 3. Fondo oscuro armonizado con el tono dominante de la foto
         dominante = max(candidatos, key=lambda x: x[0])
         _, hd, sd, _ = dominante
         c_fondo = hsv_a_hex(hd, min(sd, 0.55), 0.14)
@@ -272,7 +268,6 @@ with tab2:
     else:
         st.header("Estructura de Costos")
         
-        # --- MEMORIA DEL SISTEMA: Cargar la última configuración si existe ---
         if 'config_guardada' not in st.session_state:
             st.session_state.config_guardada = {}
             try:
@@ -284,7 +279,6 @@ with tab2:
         
         conf = st.session_state.config_guardada
 
-        # Contar preferencias reales
         conteo_comida = df['gusto_comida'].value_counts()
         total_carne = conteo_comida.get('Carne', 0) + conteo_comida.get('Sin preferencia', 0)
         total_pollo = conteo_comida.get('Pollo', 0)
@@ -334,7 +328,6 @@ with tab2:
             
             generar = st.form_submit_button("💰 GENERAR INFORME FINANCIERO")
 
-        # Si le da a generar, procesamos y guardamos todo en la memoria de la sesión
         if generar:
             k_carne = (total_carne * gr_carne) / 1000
             gasto_carne = k_carne * precio_carne
@@ -353,7 +346,6 @@ with tab2:
             gran_total = subtotal + monto_imprevistos
             cuota_por_persona = gran_total / total_invitados if total_invitados > 0 else 0
             
-            # Guardamos los resultados y la configuración en el Session State
             st.session_state.resultados = {
                 "k_carne": k_carne, "gasto_carne": gasto_carne, "k_pollo": k_pollo, "gasto_pollo": gasto_pollo,
                 "total_unidades_pasa": total_unidades_pasa, "gasto_pasabocas": gasto_pasabocas,
@@ -372,7 +364,6 @@ with tab2:
                 "costo_lugar": costo_lugar, "costo_dj": costo_dj, "costo_deco": costo_deco, "margen": margen
             }
 
-        # ================= INTERFAZ DE RESULTADOS =================
         if 'resultados' in st.session_state:
             res = st.session_state.resultados
             conf = st.session_state.config_guardada
@@ -413,7 +404,6 @@ with tab2:
             ### **VALOR TOTAL DEL PROYECTO: ${res['gran_total']:,.0f}**
             """
             
-            # ADICIÓN AUTOMÁTICA DE APORTANTES AL REPORTE SI EXISTEN
             if st.session_state.aportantes:
                 resumen_print += "\n---\n**4. FINANCIAMIENTO Y APORTES:**\n"
                 total_recogido = 0
@@ -501,7 +491,6 @@ with tab3:
             c_resp1, c_resp2 = st.columns(2)
             nombre_aportante = c_resp1.text_input("Nombre de la Persona (Ej. Mamá, Yo, Tío Juan)")
             
-            # AQUÍ ESTÁ LA MAGIA DEL SALDO FALTANTE
             tipo_aporte = c_resp2.selectbox("Tipo de Aporte", [
                 "Asumir un Gasto Específico", 
                 "Monto Fijo ($)", 
@@ -540,7 +529,6 @@ with tab3:
                 valor_calculado = 0
                 detalle_texto = ""
                 
-                # Cálculos basados en la selección
                 if tipo_aporte == "Asumir un Gasto Específico" and item_especifico != "Seleccionar...":
                     valor_calculado = gastos_disponibles[item_especifico]
                     detalle_texto = f"Pago de {item_especifico}"
@@ -577,7 +565,6 @@ with tab3:
                     st.success(f"¡Aporte de {nombre_aportante} agregado exitosamente!")
                     st.rerun()
 
-        # --- MOSTRAR EL BALANCE FINANCIERO ---
         if st.session_state.aportantes:
             st.subheader("📈 Balance Financiero")
             df_aportes = pd.DataFrame(st.session_state.aportantes)
@@ -608,7 +595,7 @@ with tab3:
                 st.rerun()
 
 # ==========================================
-# PESTAÑA 4: CONFIGURAR INVITACIÓN (CON COLORES MANUALES O AUTOMÁTICOS)
+# PESTAÑA 4: CONFIGURAR INVITACIÓN (COLORES MANUALES O AUTOMÁTICOS)
 # ==========================================
 with tab4:
     st.header("⚙️ Configuración Visual de la Invitación")
@@ -681,7 +668,6 @@ with tab4:
             if nuevo_audio is not None:
                 audio_url_final = subir_archivo_supabase(nuevo_audio, "musica")
 
-            # Si eligió modo automático, extrae la paleta de la foto nueva o de la ya guardada
             c_prim, c_sec, c_fond = color_primario, color_secundario, color_fondo
             if modo_color.startswith("✨"):
                 img_bytes = nueva_foto.getvalue() if nueva_foto is not None else obtener_bytes_imagen(foto_url_final)
@@ -710,7 +696,7 @@ with tab4:
                 "color_primario": c_prim,
                 "color_secundario": c_sec,
                 "color_fondo": c_fond,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.now().isoformat()
             }
 
             try:
