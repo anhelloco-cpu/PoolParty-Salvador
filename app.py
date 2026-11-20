@@ -5,8 +5,8 @@ import os
 from supabase import create_client, Client
 
 # --- CONFIGURACIÓN SUPABASE ---
-SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
-SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
+SUPABASE_URL = "https://pnpwrfjeiqwibkbqmswv.supabase.co"
+SUPABASE_KEY = "sb_publishable_7UMYHjae3aVWA1S9_LAkVw_Ot2CJluw"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- CARGAR CONFIGURACIÓN ACTIVA DESDE EL PANEL ADMIN ---
