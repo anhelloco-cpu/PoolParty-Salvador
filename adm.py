@@ -7,6 +7,9 @@ from fpdf import FPDF
 from docx import Document
 import base64
 import time
+from PIL import Image
+import colorsys
+import urllib.request
 
 # --- CONFIGURACIÓN SUPABASE ---
 SUPABASE_URL = "https://pnpwrfjeiqwibkbqmswv.supabase.co"
@@ -95,6 +98,77 @@ def obtener_vista_previa(valor_url):
     if valor_url.startswith("data:") and "," in valor_url:
         return base64.b64decode(valor_url.split(",", 1)[1])
     return valor_url
+# Agrega estas 3 líneas dentro de tu diccionario CONFIG_DEFAULT:
+    "color_primario": "#00ffff",
+    "color_secundario": "#ff00ff",
+    "color_fondo": "#060e1d",
+
+def obtener_bytes_imagen(url_o_b64):
+    """Obtiene los bytes de la imagen actual (sea Base64 o URL de Supabase Storage)."""
+    if not url_o_b64:
+        return None
+    if url_o_b64.startswith("data:") and "," in url_o_b64:
+        return base64.b64decode(url_o_b64.split(",", 1)[1])
+    try:
+        req = urllib.request.Request(url_o_b64, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.read()
+    except Exception:
+        return None
+
+def extraer_colores_de_imagen(img_bytes):
+    """Extrae (color_primario, color_secundario, color_fondo) armonizados con la foto."""
+    try:
+        img = Image.open(BytesIO(img_bytes)).convert("RGB")
+        img.thumbnail((120, 120))
+        quant = img.quantize(colors=12)
+        palette = quant.getpalette()
+        counts = quant.getcolors() or []
+
+        candidatos = []
+        for count, idx in counts:
+            r, g, b = palette[idx * 3 : idx * 3 + 3]
+            h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+            candidatos.append((count, h, s, v))
+
+        if not candidatos:
+            return "#00ffff", "#ff00ff", "#060e1d"
+
+        def hsv_a_hex(h, s, v):
+            r, g, b = colorsys.hsv_to_rgb(h % 1.0, min(max(s, 0.0), 1.0), min(max(v, 0.0), 1.0))
+            return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+        # 1. Color principal (líneas, cronómetro, botón): el más vibrante y visible
+        vibrantes = sorted(
+            candidatos,
+            key=lambda x: (x[2] * (0.4 + 0.6 * x[3])) * (x[0] ** 0.25),
+            reverse=True
+        )
+        _, h1, s1, v1 = vibrantes[0]
+        c_primario = hsv_a_hex(h1, max(s1, 0.55) if s1 > 0.12 else s1, max(v1, 0.80))
+
+        # 2. Color secundario (etiquetas, borde del formulario, marquesina)
+        sec_elegido = None
+        for item in vibrantes[1:]:
+            dist_hue = min(abs(item[1] - h1), 1.0 - abs(item[1] - h1))
+            if dist_hue >= 0.10 and item[2] >= 0.20:
+                sec_elegido = item
+                break
+
+        if sec_elegido:
+            _, h2, s2, v2 = sec_elegido
+            c_secundario = hsv_a_hex(h2, max(s2, 0.55), max(v2, 0.82))
+        else:
+            c_secundario = hsv_a_hex((h1 + 0.08) % 1.0, max(s1 * 0.8, 0.40), 0.95)
+
+        # 3. Fondo oscuro armonizado con el tono dominante de la foto
+        dominante = max(candidatos, key=lambda x: x[0])
+        _, hd, sd, _ = dominante
+        c_fondo = hsv_a_hex(hd, min(sd, 0.55), 0.14)
+
+        return c_primario, c_secundario, c_fondo
+    except Exception:
+        return "#00ffff", "#ff00ff", "#060e1d"
 
 cfg_inv = cargar_config_invitacion()
 
@@ -534,26 +608,25 @@ with tab3:
                 st.rerun()
 
 # ==========================================
-# PESTAÑA 4: CONFIGURAR INVITACIÓN (NUEVO PANEL VISUAL)
+# PESTAÑA 4: CONFIGURAR INVITACIÓN (CON COLORES MANUALES O AUTOMÁTICOS)
 # ==========================================
 with tab4:
     st.header("⚙️ Configuración Visual de la Invitación")
-    st.caption("Cambia aquí el festejado (ej. Junior), la fecha del cronómetro, el lugar, la foto de fondo y el disco. Al guardar, la invitación pública se actualiza automáticamente.")
+    st.caption("Configura el festejado, fecha, lugar, foto, música y colores de las líneas.")
 
     fecha_actual, hora_actual = parsear_fecha_js(cfg_inv.get("fecha_cronometro", "April 22, 2026 23:59:59"))
 
     with st.form("form_config_invitacion"):
         st.subheader("1. Identidad del Evento")
         ci1, ci2 = st.columns(2)
-        nombre_festejado = ci1.text_input("Nombre del Festejado / Anfitrión", value=cfg_inv["nombre_festejado"], placeholder="Ej: JUNIOR")
-        titulo_pagina = ci2.text_input("Título de la Pestaña Web", value=cfg_inv["titulo_pagina"], placeholder="Ej: Fiesta de Junior")
+        nombre_festejado = ci1.text_input("Nombre del Festejado / Anfitrión", value=cfg_inv["nombre_festejado"])
+        titulo_pagina = ci2.text_input("Título de la Pestaña Web", value=cfg_inv["titulo_pagina"])
 
         ci3, ci4 = st.columns([2, 1])
-        subtitulo = ci3.text_input("Subtítulo sobre la foto (opcional)", value=cfg_inv["subtitulo"], placeholder="Ej: CUMPLEAÑOS / GRAN CELEBRACIÓN")
+        subtitulo = ci3.text_input("Subtítulo sobre la foto (opcional)", value=cfg_inv["subtitulo"])
         mostrar_nombre = ci4.checkbox(
             "Mostrar nombre encima de la foto",
-            value=bool(cfg_inv["mostrar_nombre_sobre_foto"]),
-            help="Actívalo si la foto nueva no trae el nombre impreso en el diseño."
+            value=bool(cfg_inv["mostrar_nombre_sobre_foto"])
         )
 
         st.divider()
@@ -561,10 +634,10 @@ with tab4:
         cf1, cf2, cf3 = st.columns(3)
         fecha_evento = cf1.date_input("Fecha para el Cronómetro", value=fecha_actual)
         hora_evento = cf2.time_input("Hora límite del Cronómetro", value=hora_actual)
-        fecha_texto = cf3.text_input("Fecha visible en el acordeón", value=cfg_inv["fecha_texto"], placeholder="Ej: 20 de diciembre")
+        fecha_texto = cf3.text_input("Fecha visible en el acordeón", value=cfg_inv["fecha_texto"])
 
         cl1, cl2 = st.columns(2)
-        lugar_nombre = cl1.text_input("Nombre del Sitio", value=cfg_inv["lugar_nombre"], placeholder="Ej: Rancho JP")
+        lugar_nombre = cl1.text_input("Nombre del Sitio", value=cfg_inv["lugar_nombre"])
         direccion = cl2.text_input("Dirección", value=cfg_inv["direccion"])
 
         ch1, ch2 = st.columns(2)
@@ -583,10 +656,22 @@ with tab4:
         nueva_foto = cu1.file_uploader("Subir nueva Foto de Fondo (JPG, PNG, WEBP)", type=["jpg", "jpeg", "png", "webp"])
         nuevo_audio = cu2.file_uploader("Subir nuevo Disco / Música (MP3, WAV, M4A)", type=["mp3", "wav", "m4a"])
 
+        st.divider()
+        st.subheader("4. Colores de Líneas, Botón y Marcos")
+        modo_color = st.radio(
+            "¿Cómo quieres elegir los colores?",
+            ["🎨 Manual (uso los colores elegidos abajo)", "✨ Automático (tomar colores de la foto de fondo)"],
+            horizontal=True
+        )
+        cc1, cc2, cc3 = st.columns(3)
+        color_primario = cc1.color_picker("Color Principal (Líneas, Botón, Números)", value=cfg_inv.get("color_primario", "#00ffff"))
+        color_secundario = cc2.color_picker("Color Secundario (Detalles, Formulario, Banda)", value=cfg_inv.get("color_secundario", "#ff00ff"))
+        color_fondo = cc3.color_picker("Color Base Oscuro (Fondo de Tarjetas)", value=cfg_inv.get("color_fondo", "#060e1d"))
+
         guardar_cfg = st.form_submit_button("💾 GUARDAR Y PUBLICAR INVITACIÓN", use_container_width=True)
 
     if guardar_cfg:
-        with st.spinner("Guardando configuración y archivos en Supabase..."):
+        with st.spinner("Guardando configuración y procesando colores..."):
             foto_url_final = cfg_inv.get("foto_url", "")
             audio_url_final = cfg_inv.get("audio_url", "")
 
@@ -595,6 +680,15 @@ with tab4:
 
             if nuevo_audio is not None:
                 audio_url_final = subir_archivo_supabase(nuevo_audio, "musica")
+
+            # Si eligió modo automático, extrae la paleta de la foto nueva o de la ya guardada
+            c_prim, c_sec, c_fond = color_primario, color_secundario, color_fondo
+            if modo_color.startswith("✨"):
+                img_bytes = nueva_foto.getvalue() if nueva_foto is not None else obtener_bytes_imagen(foto_url_final)
+                if img_bytes:
+                    c_prim, c_sec, c_fond = extraer_colores_de_imagen(img_bytes)
+                else:
+                    st.warning("No se encontró una foto cargada para extraer colores; se guardaron los colores manuales.")
 
             payload = {
                 "id": 1,
@@ -613,17 +707,19 @@ with tab4:
                 "opciones_comida": opciones_comida.strip() or "Carne, Pollo, Vegetariano, Sin preferencia",
                 "foto_url": foto_url_final,
                 "audio_url": audio_url_final,
+                "color_primario": c_prim,
+                "color_secundario": c_sec,
+                "color_fondo": c_fond,
                 "updated_at": datetime.utcnow().isoformat()
             }
 
             try:
                 supabase.table("configuracion_invitacion").upsert(payload).execute()
-                st.success(f"✅ ¡Listo! La invitación ahora está configurada para **{payload['nombre_festejado']}**.")
+                st.success(f"✅ ¡Guardado para **{payload['nombre_festejado']}**! Paleta activa: `{c_prim}` | `{c_sec}` | `{c_fond}`")
                 st.rerun()
             except Exception as e:
-                st.error(f"Error al guardar en Supabase. Verifica que hayas ejecutado el script SQL. Detalle: {e}")
+                st.error(f"Error al guardar en Supabase. Detalle: {e}")
 
-    # Vista previa de los archivos actualmente activos
     st.divider()
     st.subheader("👁️ Vista Previa Actual")
     vp1, vp2 = st.columns(2)
@@ -635,6 +731,17 @@ with tab4:
         else:
             st.info("Usando la imagen local por defecto (`invitacion.jpg`).")
     with vp2:
+        st.markdown("**Paleta de colores activa:**")
+        st.markdown(
+            f"""
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <div style="background:{cfg_inv.get('color_primario', '#00ffff')}; width:70px; height:40px; border-radius:8px; border:1px solid #ccc;"></div>
+                <div style="background:{cfg_inv.get('color_secundario', '#ff00ff')}; width:70px; height:40px; border-radius:8px; border:1px solid #ccc;"></div>
+                <div style="background:{cfg_inv.get('color_fondo', '#060e1d')}; width:70px; height:40px; border-radius:8px; border:1px solid #ccc;"></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
         st.markdown("**Disco / Audio activo:**")
         prev_audio = obtener_vista_previa(cfg_inv.get("audio_url"))
         if prev_audio:

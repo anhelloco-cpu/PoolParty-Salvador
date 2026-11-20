@@ -5,8 +5,8 @@ import os
 from supabase import create_client, Client
 
 # --- CONFIGURACIÓN SUPABASE ---
-SUPABASE_URL = "https://pnpwrfjeiqwibkbqmswv.supabase.co"
-SUPABASE_KEY = "sb_publishable_7UMYHjae3aVWA1S9_LAkVw_Ot2CJluw"
+SUPABASE_URL = "https://auezltquejptsupqkcqh.supabase.co"
+SUPABASE_KEY = "sb_publishable_eImPwr3l_Wq-TO3FW4wk2g_YUCE898x"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- CARGAR CONFIGURACIÓN ACTIVA DESDE EL PANEL ADMIN ---
@@ -25,7 +25,10 @@ CONFIG_DEFAULT = {
     "mensaje_exito": "NOS VEMOS EN EL RANCHO.",
     "opciones_comida": "Carne, Pollo, Vegetariano, Sin preferencia",
     "foto_url": "",
-    "audio_url": ""
+    "audio_url": "",
+    "color_primario": "#00ffff",
+    "color_secundario": "#ff00ff",
+    "color_fondo": "#060e1d",
 }
 
 cfg = CONFIG_DEFAULT.copy()
@@ -37,6 +40,31 @@ try:
                 cfg[k] = v
 except Exception:
     pass
+
+# --- UTILIDADES DE COLOR PARA TRANSPARENCIAS Y CONTRASTE ---
+def hex_a_rgba(hex_color, alpha):
+    h = (hex_color or "#060e1d").lstrip("#")
+    if len(h) != 6:
+        return f"rgba(6, 14, 29, {alpha})"
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+def color_texto_contraste(hex_color):
+    h = (hex_color or "#ff00ff").lstrip("#")
+    if len(h) != 6:
+        return "#ffffff"
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    luminancia = (0.299 * r + 0.587 * g + 0.114 * b)
+    return "#000000" if luminancia > 175 else "#ffffff"
+
+c_prim = cfg.get("color_primario") or "#00ffff"
+c_sec = cfg.get("color_secundario") or "#ff00ff"
+c_fond = cfg.get("color_fondo") or "#060e1d"
+
+c_fond_95 = hex_a_rgba(c_fond, 0.95)
+c_fond_85 = hex_a_rgba(c_fond, 0.85)
+c_prim_12 = hex_a_rgba(c_prim, 0.12)
+c_txt_marquesina = color_texto_contraste(c_sec)
 
 # Configuración inicial
 st.set_page_config(page_title=cfg["titulo_pagina"], layout="centered", initial_sidebar_state="collapsed")
@@ -58,85 +86,84 @@ def cargar_archivo_local(nombre_archivo, tipo="image"):
 IMAGE_URL = cfg.get("foto_url") or cargar_archivo_local("invitacion.jpg", tipo="image")
 AUDIO_DATA = cfg.get("audio_url") or cargar_archivo_local("musica.mp3", tipo="audio")
 
-# --- ESTILOS MEJORADOS (Letras blancas y Formulario Neón) ---
-st.markdown("""
+# --- ESTILOS DINÁMICOS (Adaptados a los colores configurados) ---
+st.markdown(f"""
 <style>
 /* Ocultar menús y ajustar márgenes superiores */
-#MainMenu, footer, header {visibility: hidden;}
-.block-container {
+#MainMenu, footer, header {{visibility: hidden;}}
+.block-container {{
     padding-top: 1rem !important;
     padding-bottom: 0rem !important;
     max-width: 500px !important; 
     margin: 0 auto !important;
-}
+}}
 
-div[data-testid="stVerticalBlock"] {
+div[data-testid="stVerticalBlock"] {{
     gap: 0rem !important; 
-}
+}}
 
 /* Botón principal */
-div.stButton { 
+div.stButton {{ 
     display: flex !important;
     justify-content: center !important;
     width: 100% !important;
     margin-bottom: -5px !important;
-}
+}}
 
-div.stButton > button:first-child {
-    background: linear-gradient(135deg, #001f3f, #00ffff) !important;
+div.stButton > button:first-child {{
+    background: linear-gradient(135deg, {c_fond}, {c_prim}) !important;
     color: white !important; 
-    border: 2px solid #00ffff !important;
+    border: 2px solid {c_prim} !important;
     border-radius: 50px !important; 
     padding: 10px 15px !important;
     font-size: 0.85rem !important; 
     font-weight: 900 !important;
     text-transform: uppercase !important; 
-    box-shadow: 0 0 15px #00ffff !important;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75) !important;
+    box-shadow: 0 0 15px {c_prim} !important;
     width: auto !important; 
     min-width: 250px !important;
     max-width: 320px !important;
     white-space: nowrap !important; 
-}
+}}
 
-/* --- ESTILOS DEL FORMULARIO NEÓN --- */
-.stForm { 
-    background-color: rgba(6, 14, 29, 0.95) !important; 
-    border: 2px solid #ff00ff !important; 
+/* --- ESTILOS DEL FORMULARIO --- */
+.stForm {{ 
+    background-color: {c_fond_95} !important; 
+    border: 2px solid {c_sec} !important; 
     border-radius: 15px !important; 
     margin-bottom: 0px !important;
     padding: 20px !important;
-    box-shadow: 0 0 15px #ff00ff !important;
-}
+    box-shadow: 0 0 15px {c_sec} !important;
+}}
 
-/* ETIQUETAS EN BLANCO (Nombre, Apellido, Canción, Comida) */
+/* ETIQUETAS EN BLANCO */
 div[data-testid="stTextInput"] label p, 
-div[data-testid="stSelectbox"] label p { 
+div[data-testid="stSelectbox"] label p {{ 
     color: white !important; 
     font-weight: bold !important; 
     font-size: 0.85rem !important;
     text-transform: uppercase;
-}
+}}
 
-/* Cajas de texto y selectbox donde el usuario escribe/selecciona */
+/* Cajas de texto y selectbox */
 div[data-testid="stTextInput"] input,
-div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-    background-color: #0b1a33 !important;
-    color: white !important; /* TEXTO TIPEADO EN BLANCO */
-    border: 1px solid #ff00ff !important;
-    border-radius: 8px !important;
-}
-
-/* Asegurar que la opción seleccionada en el menú desplegable sea blanca */
-div[data-testid="stSelectbox"] div[data-baseweb="select"] span {
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {{
+    background-color: {c_fond} !important;
     color: white !important;
-}
+    border: 1px solid {c_sec} !important;
+    border-radius: 8px !important;
+}}
 
-/* Efecto al hacer clic en la caja de texto */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] span {{
+    color: white !important;
+}}
+
 div[data-testid="stTextInput"] input:focus,
-div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within {
-    border-color: #00ffff !important;
-    box-shadow: 0 0 8px #00ffff !important;
-}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div:focus-within {{
+    border-color: {c_prim} !important;
+    box-shadow: 0 0 8px {c_prim} !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -155,7 +182,10 @@ if st.session_state.confirmando:
         opciones_lista = ["Carne", "Pollo", "Vegetariano", "Sin preferencia"]
 
     with st.form("registro"):
-        st.markdown("<h3 style='text-align:center; color:#ff00ff; text-shadow: 0 0 10px #ff00ff; margin-bottom: 20px;'>ESCRIBE TUS DATOS</h3>", unsafe_allow_html=True)
+        st.markdown(
+            f"<h3 style='text-align:center; color:{c_sec}; text-shadow: 0 0 10px {c_sec}; margin-bottom: 20px;'>ESCRIBE TUS DATOS</h3>",
+            unsafe_allow_html=True
+        )
         
         nom = st.text_input("Nombre")
         ape = st.text_input("Apellido")
@@ -211,7 +241,7 @@ else:
     <html>
     <head>
     <style>
-        body {{ margin: 0; padding: 0; background-color: #060e1d; overflow: hidden; font-family: 'Arial Black', sans-serif; }}
+        body {{ margin: 0; padding: 0; background-color: {c_fond}; overflow: hidden; font-family: 'Arial Black', sans-serif; }}
         
         .invitation-container {{
             position: relative; 
@@ -245,13 +275,13 @@ else:
             font-size: 2.5rem;
             letter-spacing: 3px;
             text-transform: uppercase;
-            text-shadow: 0 0 12px #00ffff, 0 0 24px #ff00ff;
+            text-shadow: 0 0 12px {c_prim}, 0 0 24px {c_sec};
         }}
         .host-title p {{
             margin: 4px 0 0 0;
             font-size: 0.9rem;
             letter-spacing: 2px;
-            color: #00ffff;
+            color: {c_prim};
             text-shadow: 0 0 8px #000;
         }}
 
@@ -265,28 +295,29 @@ else:
         }}
         
         .timer-block {{
-            background-color: rgba(6, 14, 29, 0.85); 
-            border: 1px solid #00ffff; 
+            background-color: {c_fond_85}; 
+            border: 1px solid {c_prim}; 
             border-radius: 8px; 
             padding: 8px; 
             margin: 0 auto 10px auto;
             width: 65%; 
-            box-shadow: 0 0 10px #00ffff;
+            box-shadow: 0 0 10px {c_prim};
         }}
-        .timer-count {{ font-size: 1.2rem; font-weight: bold; color: #00ffff; text-shadow: 0 0 8px #00ffff; }}
-        .timer-label {{ font-size: 0.6rem; text-transform: uppercase; color: #ff00ff; }}
+        .timer-count {{ font-size: 1.2rem; font-weight: bold; color: {c_prim}; text-shadow: 0 0 8px {c_prim}; }}
+        .timer-label {{ font-size: 0.6rem; text-transform: uppercase; color: {c_sec}; }}
 
         .info-accordion {{
             width: 85%;
             margin: 0 auto;
-            background: rgba(0, 255, 255, 0.1);
-            border: 1px solid #00ffff; 
+            background: {c_prim_12};
+            border: 1px solid {c_prim}; 
             border-radius: 10px;
             overflow: hidden;
         }}
         summary {{
-            padding: 10px; color: #00ffff; cursor: pointer; outline: none;
+            padding: 10px; color: {c_prim}; cursor: pointer; outline: none;
             list-style: none; font-size: 0.85rem; font-weight: bold;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
         }}
         .details-content {{ 
             padding: 10px; text-align: left; font-size: 0.75rem; 
@@ -294,9 +325,9 @@ else:
         }}
 
         .marquee {{
-            white-space: nowrap; overflow: hidden; background: #ff00ff; 
-            color: white; margin-top: 10px; padding: 5px 0;
-            box-shadow: 0 0 10px #ff00ff;
+            white-space: nowrap; overflow: hidden; background: {c_sec}; 
+            color: {c_txt_marquesina}; margin-top: 10px; padding: 5px 0;
+            box-shadow: 0 0 10px {c_sec};
         }}
         .marquee p {{
             display: inline-block; padding-left: 100%;
@@ -329,10 +360,10 @@ else:
                 <details class="info-accordion">
                     <summary>{cfg['titulo_acordeon']}</summary>
                     <div class="details-content">
-                        <strong style="color:#00ffff;">📍 {cfg['lugar_nombre']}</strong><br>
+                        <strong style="color:{c_prim};">📍 {cfg['lugar_nombre']}</strong><br>
                         {cfg['direccion']}<br>
-                        <strong style="color:#00ffff;">📅 FECHA:</strong> {cfg['fecha_texto']}<br>
-                        <strong style="color:#ff00ff;">🌅 HORARIO:</strong><br>
+                        <strong style="color:{c_prim};">📅 FECHA:</strong> {cfg['fecha_texto']}<br>
+                        <strong style="color:{c_sec};">🌅 HORARIO:</strong><br>
                         {cfg['horario']}
                         
                         <div class="marquee">
@@ -355,7 +386,7 @@ else:
                     document.getElementById('seconds').innerText = String(Math.floor((d % 60000) / 1000)).padStart(2, '0');
                 }} else {{
                     clearInterval(timerInterval);
-                    document.getElementById('timerBlock').innerHTML = '<div style="color:#ff00ff; font-size:0.9rem; padding:4px;">¡HOY ES LA FIESTA!</div>';
+                    document.getElementById('timerBlock').innerHTML = '<div style="color:{c_sec}; font-size:0.9rem; padding:4px;">¡HOY ES LA FIESTA!</div>';
                 }}
             }}, 1000);
 
